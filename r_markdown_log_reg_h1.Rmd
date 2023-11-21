@@ -1,0 +1,101 @@
+---
+title: "Logistic regression h1"
+author: "Elena C"
+date: "2023-11-20"
+output: html_document
+---
+
+
+H1 states: *"There is an effect of scene category (i.e., a difference between images showing man-made vs. natural environments) on the amplitude of the N1 component, i.e. the first major negative EEG voltage deflection."*
+
+The data table included in the analysis contains info on the software, high-pass cutoff values, reference, sampling rate, number of excluded subjects, baseline window length, topographic region, number of channels included in the region, multiple comparisons method, statistical method, and whether the finding was significant or not for the h1 testing. 
+
+## Load packages
+```{r, message=F}
+rm(list = ls())
+library(tidyverse)
+library(broom)
+
+```
+## Load data and inspect it for typos
+```{r}
+
+data <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/variables_for_models_h1.csv")
+
+#correct values
+data$reref[data$reref == ''] <- 'original'
+data$reref[data$reref=="average"] <- 'avg'
+data$software[data$software == "EEGLAB"] <- 'eeglab'
+data$hf_cutoff[data$hf_cutoff == '1 Hz'] <- 1
+data$hf_cutoff <- as.numeric(data$hf_cutoff)
+data$hf_cutoff[is.na(data$hf_cutoff)] <- 0
+data$bs_window[is.na(data$bs_window)] <- 0
+data$nr_chan_h1[is.na(data$nr_chan_h1)] <- mean((data$nr_chan_h1), na.rm = T)
+data$time_window_interest_h1[data$time_window_interest_h1==-680] <- 400 # corrected based on the start and end
+data$time_window_interest_h1[is.na(data$time_window_interest_h1)] <- mean((data$time_window_interest_h1), na.rm = T)
+data$topo_region_h1[data$topo_region_h1== ''] <- 'unknown'
+data$mc_method_h1[data$mc_method_h1== ''] <- 'unknown'
+data$subj_excluded[is.na(data$subj_excluded)] <- 0
+
+data <- data[-which(data$mc_method_h1=='rft'),]#high multicollinearity with spm
+table(data$hf_cutoff)
+table(data$software)
+table(data$result_h1)
+```
+
+## Inspect the data for outliers
+
+Since these are real life preprocessing practices, should we consider possible outliers?
+
+```{r, fig.show='hide'}
+hf_out <- boxplot(data$hf_cutoff)$out
+data$hf_cutoff[which(data$hf_cutoff == hf_out)] <- mean((data$hf_cutoff), na.rm = T)
+```
+## Inspect for normality
+``` {r}
+# Select only numeric predictors
+no_nan_data <- na.omit(data)
+mynumericdata <- data %>%
+  dplyr::select_if(is.numeric) 
+
+shapiro.test(mynumericdata[,6])#no data is normal
+
+#normalise numeric data
+scale_data <- mutate_if(data, is.numeric, scale)
+```
+
+
+## Build a logistic model
+``` {r}
+model <- glm(result_h1 ~., data = scale_data, family = binomial)
+
+# Summarize the model
+summary(model)
+```
+
+Time window of interest and baseline window length shows significant resutls (p<0.01). However, the effect seems to be influenced by a few extreme values.
+``` {r}
+# plot the time window effect
+scale_data %>%
+  mutate(prob = ifelse(result_h1 == "TRUE", 1, 0)) %>%
+  ggplot(aes(time_window_interest_h1, prob)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  labs(
+    title = "Logistic Regression Model", 
+    x = "Time window",
+    y = "Probability of confirming h1"
+  )
+
+# plot the baseline window effect
+scale_data %>%
+  mutate(prob = ifelse(result_h1 == "TRUE", 1, 0)) %>%
+  ggplot(aes(bs_window, prob)) +
+  geom_point(alpha = 0.2) +
+  geom_smooth(method = "glm", method.args = list(family = "binomial")) +
+  labs(
+    title = "Logistic Regression Model", 
+    x = "Baseline window",
+    y = "Probability of confirming h1"
+  )
+```

@@ -1,0 +1,75 @@
+---
+title: "markdown_logistic_regression_h2b"
+author: "Elena C"
+date: "2023-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+H2b states: *"There are effects of image novelty (i.e., between images shown for the first time/new vs. repeated/old images) within the time-range from 300–500 ms on theta power at fronto-central channels"*
+
+The data table included in the analysis contains info on the software, high-pass cutoff values, reference, sampling rate, number of excluded subjects, tf baseline window length, number of channels included in the analysis, frequency range that was included in the analysis, whether teams averaged over the time points/channels/frequencies, if ICA component selection was manual or automatic, multiple comparisons method, statistical method, and whether the finding was significant or not for the h2b testing. 
+
+## Load packages
+```{r, message=F}
+rm(list = ls())
+library(tidyverse)
+library(broom)
+
+```
+## Load data and inspect it for typos
+```{r}
+myData_h2b <-read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/git/EEGManyPipelines-personal/Matlab/Big Analysis/independent_variables_for_models_h2b_complete.csv")
+
+myData_h2b$software[myData_h2b$software=='EEGLAB'] <- 'eeglab'
+myData_h2b$reref[myData_h2b$reref == ''] <- 'original'
+myData_h2b$hf_cutoff[is.na(myData_h2b$hf_cutoff)] <- 0
+myData_h2b$tf_baseline_window[is.na(myData_h2b$tf_baseline_window)] <- 0
+myData_h2b$ds_fs[is.na(myData_h2b$ds_fs)] <- 512
+myData_h2b$subj_excluded[is.na(myData_h2b$subj_excluded)] <- 0 
+myData_h2b$nr_chan_h2b_2[is.na(myData_h2b$nr_chan_h2b_2)] <- mean((myData_h2b$nr_chan_h2b_2), na.rm = T)
+myData_h2b$time_window_interest_h2b[is.na(myData_h2b$time_window_interest_h2b)] <- mean((myData_h2b$time_window_interest_h2b), na.rm = T)
+myData_h2b$stat_method_h2b[myData_h2b$stat_method_h2b== ""] <- 'unknown'
+
+myData_h2b$comp_selection[myData_h2b$comp_selection == 0] <- 'unknown'
+myData_h2b$comp_selection[myData_h2b$comp_selection == 1] <- 'visual'
+myData_h2b$comp_selection[myData_h2b$comp_selection == 2] <- 'plugin'
+
+myData_h2b$mc_method_h2b[which(myData_h2b$mc_method_h2b == 'none' & myData_h2b$mc_binary==1)] <- 'unknown'
+myData_h2b$mc_method_h2b[which(myData_h2b$mc_method_h2b != 'none' & myData_h2b$mc_binary==0)] <- 'none'
+myData_h2b$mc_method_h2b[which(myData_h2b$mc_method_h2b == "" & myData_h2b$mc_binary==1)] <- 'unknown'
+myData_h2b$tf_method[myData_h2b$tf_method == ''] <- 'unknown'
+```
+## Inspect the data for outliers
+
+Since these are real life preprocessing practices, should we consider possible outliers?
+
+```{r, fig.show='hide'}
+
+```
+## Inspect for normality
+``` {r}
+# Select only numeric predictors
+no_nan_data <- na.omit(myData_h2b)
+mynumericdata <- myData_h2b %>%
+  dplyr::select_if(is.numeric) 
+
+shapiro.test(mynumericdata[,6])#no data is normal
+#normalise numeric data
+scale_data <- mutate_if(myData_h2b[,-10], is.numeric, scale)
+
+#data to include
+data_incl <- scale_data[,c(-7, -10)]
+```
+
+## Build a logistic model
+``` {r}
+model <- glm(myData_h2b$sig_res ~., data = data_incl, family = binomial)
+
+# Summarize the model
+summary(model)
+```
+
+No siginificant relationship between the independent and dependent variables
