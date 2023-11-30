@@ -1,0 +1,125 @@
+---
+title: "Logistic regression h1"
+author: "Elena C"
+date: "2023-11-20"
+output: html_document
+---
+
+
+H1 states: *"There is an effect of scene category (i.e., a difference between images showing man-made vs. natural environments) on the amplitude of the N1 component, i.e. the first major negative EEG voltage deflection."*
+
+The data table included in the analysis contains info on the software, high-pass cutoff values, reference, sampling rate, number of excluded subjects, baseline window length, topographic region, number of channels included in the region, multiple comparisons method, statistical method, and whether the finding was significant or not for the h1 testing. 
+
+## Load packages
+```{r, message=F}
+rm(list = ls())
+library(tidyverse)
+library(broom)
+library(readxl)
+
+```
+## Load data and inspect it for typos
+```{r}
+data <- read_excel("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/git/EEGManyPipelines-personal/Matlab/Big Analysis/initial_variables_h1_pval.xlsx")
+data <- as.data.frame(data)
+#correct values
+table(data$software)
+data$software[data$software== 'eeglab_erplab'] <- 'eeglab'
+data$software[data$software== 'eeglab_limo'] <- 'eeglab'
+
+data <- data[-which(data$mc_method_h1=='rft'),]#high multicollinearity with spm
+#table(data$hf_cutoff)
+#table(data$software)
+#table(data$result_h1)
+#hist(data$pval)
+#hist(data$pval[data$pval<0.05])
+```
+
+## Inspect the data for outliers
+
+Since these are real life preprocessing practices, should we consider possible outliers?
+
+```{r, fig.show='hide'}
+hf_out <- boxplot(data$hf_cutoff)$out
+data$hf_cutoff[which(data$hf_cutoff == hf_out)] <- mean((data$hf_cutoff), na.rm = T)
+```
+## Inspect for normality
+``` {r}
+# Select only numeric predictors
+data_reduced <- data[,c(-1,-13)] #delete the row numbers and binary reponse to hypothesis testing
+data_reduced <- na.omit(data_reduced)
+mynumericdata <- data_reduced %>%
+  dplyr::select_if(is.numeric) 
+
+shapiro.test(mynumericdata$hf_cutoff)#no data is normal
+
+pval_zscore <- qnorm(data_reduced$pval)
+
+indx_inf <- which(!is.finite(pval_zscore))
+pval_zscore <- pval_zscore[-indx_inf] # remove the infinite value due to a mistakenly assigned 0 to pval
+data_reduced <- data_reduced[-indx_inf,]
+
+#normalise numeric data
+for (i in 1:length(data_reduced)) {
+  
+  if (is.numeric(data_reduced[,i])){
+    data_reduced[,i] <- data_reduced[,i]-mean(data_reduced[,i])/sd(data_reduced[,i])
+  }
+}
+# scaled_data <- mutate_if(data, is.numeric, scale)
+#table(scaled_data$pval)
+
+data_reduced$pval <- pval_zscore
+hist(data_reduced$pval)
+#hist(data$hf_cutoff-mean(data$hf_cutoff)/sd(data$hf_cutoff))
+```
+
+## Check pvalues for true/false h0 testing
+```{r}
+# Boxplot basic
+data %>%
+  ggplot( aes(x=result_h1, y=pval, fill=result_h1)) +
+  geom_boxplot() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) 
+
+#zscored
+data %>%
+  ggplot( aes(x=result_h1, y=qnorm(pval), fill=result_h1)) +
+  geom_boxplot() +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=11)
+  ) 
+````
+
+## Build a logistic model
+
+```{r}
+
+model <- glm(pval ~., data = data_reduced)
+
+# Summarize the model
+summary(model)
+```
+
+Multiple comparissons option 'none'  shows significant resutls (p<0.01). However, directionality is unexpected. Inspect visually this relationship.
+``` {r}
+#install.packages('hrbrthemes')
+library(hrbrthemes)
+library(viridis)
+#inspect the relationship between mc method and zscore pvalues
+data_reduced %>%
+  ggplot( aes(x=mc_method_h1, y=pval, fill=mc_method_h1)) +
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color="black", size=0.4, alpha=0.9) +
+  theme(legend.position="none", text = element_text(size=20),axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  labs(y= "z-scored p-val", x = "multiple comparissons")
+
+#inspect the relationship between not using mc and original pvalues
+mc_none <- data[data$mc_method_h1=='none',]
+boxplot(mc_none$pval, ylab = 'original pval', xlab = 'mc none')
+```
