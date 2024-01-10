@@ -127,6 +127,13 @@ model_complete <- glm(pval ~ ., data = h1_data)
 # Summarize the model: although data frames are similar, they produce completely different results
 summary(model_complete)
 
+#Software
+test_soft <- h1_data
+test_soft$software <- as.factor(test_soft$software)
+test_soft <- within(test_soft, software <- relevel(software, ref = 'eeglab'))
+model_soft <- glm(pval ~ software, data = test_soft)
+summary(model_soft)
+
 # reduced models including one predictor
 # For data including time window and baseline length but not start and end of those windows (models range from 1 to 21)
 
@@ -182,8 +189,42 @@ aictab(cand.set = models_list_full2)
 # Cum.Wt: The sum of the AICc weights. Here the top two models contain 100% of the cumulative AICc weight.
 
 #fit the best model acording to ACI
+#MT
 model_mt <- glm(pval ~ ans_mt_h1, data = h1_data)
 summary(model_mt)
+
+#Scatterplot
+ggplot(h1_data, aes(x=pval, y=ans_mt_h1)) +
+  geom_point() 
+
+#Baseline start
+model_bs <- glm(pval ~ ans_baseline_start, data = h1_data)
+summary(model_bs)
+
+#Scatterplot with scaling
+ggplot(h1_data, aes(x=pval, y=ans_baseline_start)) +
+  geom_point() +
+  geom_smooth(method=lm, se=FALSE)
+
+#Scatterplot without scaling
+
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+h1_data <- as.data.frame(h1_data)
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T) 
+
+ggplot(h1_data, aes(x=qnorm(pval), y=ans_baseline_start)) +
+  geom_point() +
+  geom_smooth(method=lm, se=FALSE)
+
+#How many corrected for multiple comparissons
+sum(h1_data$ans_mt_h1, na.rm = T)
+
+# old part of the code
 
 library(hrbrthemes)
 library(viridis)
