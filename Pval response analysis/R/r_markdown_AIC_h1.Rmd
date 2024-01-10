@@ -146,7 +146,7 @@ aictab(cand.set = models_list_full2)
 
 ## Fit the best model acording to ACI
 ```{r}
-model_mt <- glm(pval ~ ans_mt_h1, data = h1_data, family = "binomial")
+model_mt <- glm(pval ~ ans_mt_h1, data = h1_data)
 summary(model_mt)
 
 
