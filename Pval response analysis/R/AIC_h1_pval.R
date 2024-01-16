@@ -92,7 +92,7 @@ shapiro.test(mynumericdata$hf_cutoff)#no data is normal
 # ---------------
 
 hist(qnorm(dependent_h1$pval))
-pval_zscore <- qnorm(dependent_h1$pval)
+pval_zscore <- qnorm(dependent_h1$pval)#qnorm(0.975,mean=0,sd=1)
 
 indx_inf <- which(!is.finite(pval_zscore))
 pval_zscore <- pval_zscore[-indx_inf] # remove the infinite value due to a mistakenly assigned 0 to pval it also takeS NAN values
@@ -221,10 +221,44 @@ ggplot(h1_data, aes(x=qnorm(pval), y=ans_baseline_start)) +
   geom_point() +
   geom_smooth(method=lm, se=FALSE)
 
+
+
 #How many corrected for multiple comparissons
 sum(h1_data$ans_mt_h1, na.rm = T)
 
-# old part of the code
+#scatterplot
+ggplot(h1_data, aes(x=pval, y=ans_mt_h1)) +
+  geom_point() 
+
+# Find team ID's that corrected for MT
+IDs <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_IDs_168.csv")
+indx_ID_mt <- which(h1_data$ans_mt_h1==T,arr.ind=TRUE)
+IDs[indx_ID_mt,]
+
+#scatterplot of how many teams that did cluster statistics said that it accounted for multiple comparisons
+table(h1_data$stat_method_h1[indx_ID_mt])
+indx_no_mt <- which(h1_data$ans_mt_h1==F,arr.ind=TRUE)
+table(h1_data$stat_method_h1[indx_no_mt])
+
+#those that did cluster statistics, which kind of mc method they report
+indx_clust <- which(h1_data$stat_method_h1=='cluster',arr.ind=TRUE)
+table(h1_data$mc_method_h1[indx_clust])
+
+#Model for cluster stat as predictor for pval
+model_stat <- glm(pval ~ stat_method_h1, data = h1_data)
+summary(model_stat)
+
+#check those that did smth else than cluster stat - did they report corrected or not pval?
+table(h1_data$mc_method_h1[indx_ID_mt])
+indx_bhfdr <- which(h1_data$mc_method_h1=='bhfdr',arr.ind=TRUE)
+IDs[indx_bhfdr,]
+
+table(h1_data$mc_method_h1[indx_ID_mt])
+table(h1_data$stat_method_h1)
+
+
+#------------------------------------------------------------------------------------------------------------------------------------
+# Old part of the code
 
 library(hrbrthemes)
 library(viridis)
