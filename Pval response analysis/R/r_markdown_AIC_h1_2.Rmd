@@ -114,10 +114,10 @@ for (i in 1:length(continuous)) {
 ## Build models
 ```{r}
 #add pval
-h1_data$pval <- pval_zscore
+h1_data$zscore_p <- pval_zscore
 
 # models including full data and but no interactions
-model_complete <- glm(pval ~ ., data = h1_data)
+model_complete <- glm(zscore_p ~ ., data = h1_data)
 
 #summarize the model
 summary(model_complete)
@@ -126,14 +126,14 @@ summary(model_complete)
 test_soft <- h1_data
 test_soft$software <- as.factor(test_soft$software)
 test_soft <- within(test_soft, software <- relevel(software, ref = 'eeglab'))
-model_soft <- glm(pval ~ software, data = test_soft)
+model_soft <- glm(zscore_p ~ software, data = test_soft)
 summary(model_soft)
 
 # Build reduced models including one predictor
 
 models_list_single_1 = list()
 for (g in 1:ncol(h1_data[,-1])){
-  reduced_1 = glm(pval ~ h1_data[,g], data = h1_data)
+  reduced_1 = glm(zscore_p ~ h1_data[,g], data = h1_data)
   models_list_single_1 = append(models_list_single_1, list(reduced_1))
 }
 
@@ -171,19 +171,40 @@ aictab(cand.set = models_list_full2)
 ## Fit the best model acording to ACI
 # Multiple comparissons (80 teams corrected for multiple comparissons, and 87 did not)
 ```{r}
-model_mt <- glm(pval ~ ans_mt_h1, data = h1_data)
+model_mt <- glm(zscore_p ~ ans_mt_h1, data = h1_data)
 summary(model_mt)
 
 #Scatterplot
-ggplot(h1_data, aes(x=pval, y=ans_mt_h1)) +
+ggplot(h1_data, aes(x=zscore_p, y=ans_mt_h1)) +
   geom_point() 
+```
+
+```{r}
+#boxplot of original pvalues to compare
+
+library(ggplot2)
+orig_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+orig_data <- as.data.frame(orig_data)
+indx_no_mt <- which(orig_data$ans_mt_h1==F,arr.ind=TRUE)
+indx_mt <- which(orig_data$ans_mt_h1==T,arr.ind=TRUE)
+median(orig_data$pval[indx_no_mt], na.rm = T)
+median(orig_data$pval[indx_mt], na.rm = T)
+
+ggplot(orig_data, aes(x=as.factor(ans_mt_h1), y=pval)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2) + 
+  xlab("multiple comparisons")+
+  geom_text(x=1, y=1, label=median(orig_data$pval[indx_no_mt], na.rm = T), size = 3)+
+  geom_text(x=2, y=1, label=median(orig_data$pval[indx_mt], na.rm = T), size = 3)#+ylim(min(orig_data$pval), 0.05)
+
+cor.test(orig_data$pval, qnorm(1-orig_data$pval))
+cor.test(orig_data$pval, qnorm(orig_data$pval))
 
 ```
 
 # Baseline start
 Interestingly, the start of the baseline window is linked to the size of a p-value and not the total length of the baseline window (Model26) or the end of it (mModel25)
 ```{r}
-model_bs <- glm(pval ~ ans_baseline_start, data = h1_data)
+model_bs <- glm(zscore_p ~ ans_baseline_start, data = h1_data)
 summary(model_bs)
 
 #Scatterplot without scaling
