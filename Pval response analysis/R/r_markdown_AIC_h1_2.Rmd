@@ -1,0 +1,202 @@
+---
+title: "AIC H1"
+author: "Elena C"
+date: "2024-01-10"
+output: html_document
+---
+
+## Load packages
+```{r setup, warning=FALSE}
+library(tidyverse)
+library(broom)
+library(readxl)
+library(AICcmodavg)
+library(ggplot2)
+```
+
+## Load data and inspect it for typos
+
+
+```{r}
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+h1_data <- as.data.frame(h1_data)
+
+# Software
+h1_data$software[h1_data$software== 'eeglab_erplab'] <- 'eeglab'
+h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
+table(h1_data$software)
+
+#Fill in empty responses
+# High-pass filter type & direction
+h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
+h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
+table(h1_data$ans_hf_type)
+table(h1_data$ans_hf_direction) # has almost mo variability - remove later
+
+# Segment exclusion criteria
+h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
+table(h1_data$ans_exclusion_criteria_seg)
+
+#Time window start, end & length
+#exchange missing values to the mean of the column
+h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
+h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
+h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
+#table(h1_data$ans_time_w_start_h1)
+
+# ICA algorythm
+h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
+table(h1_data$ans_ica_algo)
+
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T) 
+```
+
+## Prepare data for regression analysis
+
+```{r}
+# high collinearity problem removal
+h1_data <- h1_data[-which(h1_data$mc_method_h1=='rft'),] # 3 teams removed
+
+# too few samples that give Nan results in our models:
+# ans_software_hostBESA Research 7.1  , ans_software_hostPython 3.8.10  , ans_hf_directionfwr_bwr, ans_ica_algoother
+h1_data$ans_software_host[h1_data$ans_software_host == 'BESA Research 7.1'] <- 'unknown'
+h1_data$ans_software_host[h1_data$ans_software_host == 'Python 3.8.10'] <- 'unknown'
+h1_data$ans_software_host[h1_data$ans_software_host == 'R 4.1.3'] <- 'unknown'
+h1_data$ans_hf_direction[h1_data$ans_hf_direction == 'fwr_bwr'] <- 'unknown'
+h1_data$ans_ica_algo[h1_data$ans_ica_algo == 'other'] <- 'unknown'
+
+# outliers removal
+hf_out <- boxplot(h1_data$hf_cutoff)$out
+h1_data$hf_cutoff[which(h1_data$hf_cutoff == hf_out)] <- mean((h1_data$hf_cutoff), na.rm = T) # removed one team that had 3 for a  HP filter
+
+# cut data into dependent and independent variables
+dependent_h1 <- h1_data[,c(27,28)] # binary H1 outcome and pvalues
+h1_data <- h1_data[,c(2:26)] #delete the row numbers and dependent variables
+
+# look if there are any NaN values
+which(is.na(h1_data),arr.ind=TRUE) # row 157 column 15 is NA (Q: if team corrected for multiple comparisons 1 and 0)
+
+# Caution: remove them from the dataset
+dependent_h1 <- dependent_h1[-157,]
+h1_data <- h1_data[-157,]
+
+# Select only numeric predictors
+mynumericdata <- h1_data %>%
+  dplyr::select_if(is.numeric) 
+
+shapiro.test(mynumericdata$hf_cutoff)#no data is normal
+```
+
+## Z-score p-values and normalize numeric data
+```{r}
+
+hist(qnorm(1-dependent_h1$pval))
+pval_zscore <- qnorm(1-dependent_h1$pval)
+
+indx_inf <- which(!is.finite(pval_zscore))
+pval_zscore <- pval_zscore[-indx_inf] # remove the infinite value due to a mistakenly assigned 0 to pval it also takeS NAN values
+h1_data <- h1_data[-indx_inf,] # remove those rows from independent variables too
+
+continuous <- c(3, 7, 8, 10, 16:18, 23:25)
+
+#normalizing data
+for (i in 1:length(continuous)) {
+  contin_data_col <- h1_data[,continuous[i]]
+  h1_data[,continuous[i]] <- scale(contin_data_col)
+}
+```
+
+## Build models
+```{r}
+#add pval
+h1_data$pval <- pval_zscore
+
+# models including full data and but no interactions
+model_complete <- glm(pval ~ ., data = h1_data)
+
+#summarize the model
+summary(model_complete)
+
+#Software
+test_soft <- h1_data
+test_soft$software <- as.factor(test_soft$software)
+test_soft <- within(test_soft, software <- relevel(software, ref = 'eeglab'))
+model_soft <- glm(pval ~ software, data = test_soft)
+summary(model_soft)
+
+# Build reduced models including one predictor
+
+models_list_single_1 = list()
+for (g in 1:ncol(h1_data[,-1])){
+  reduced_1 = glm(pval ~ h1_data[,g], data = h1_data)
+  models_list_single_1 = append(models_list_single_1, list(reduced_1))
+}
+
+```
+
+## Compare models using AIC
+The Akaike information criterion (AIC) is a mathematical method for evaluating how well a model fits the data it was generated from. In statistics, AIC is used to compare different possible models and determine which one is the best fit for the data.
+
+Interpretation:
+
+**K:** The number of parameters in the model. The default K is 2, so a model with one parameter will have a K of 2 + 1 = 3.
+
+**AICc:** The information score of the model (the lower-case ‘c’ indicates that the value has been calculated from the AIC 
+test corrected for small sample sizes). The smaller the AIC value, the better the model fit.
+
+**Delta_AICc:** The difference in AIC score between the best model and the model being compared: In our data it looks like 
+the first two models are equally good (model 15 and 23).
+
+**AICcWt:** AICc weight, which is the proportion of the total amount of predictive power provided by the full set of models 
+contained in the model being assessed. In this case, the top model contains 23% of the total explanation that can be found 
+in the full set of models.
+
+**Cum.Wt:** The sum of the AICc weights. The cumulative AICc weight is 0.46, meaning 46% of the support in the data are for these two models.
+```{r}
+#Put all models into the list:
+models_list_full2 <- c(models_list_single_1, list(model_complete))
+
+# Run AIC
+aictab(cand.set = models_list_full2)
+
+# Models 26 is the complete model
+
+```
+
+## Fit the best model acording to ACI
+# Multiple comparissons (80 teams corrected for multiple comparissons, and 87 did not)
+```{r}
+model_mt <- glm(pval ~ ans_mt_h1, data = h1_data)
+summary(model_mt)
+
+#Scatterplot
+ggplot(h1_data, aes(x=pval, y=ans_mt_h1)) +
+  geom_point() 
+
+```
+
+# Baseline start
+Interestingly, the start of the baseline window is linked to the size of a p-value and not the total length of the baseline window (Model26) or the end of it (mModel25)
+```{r}
+model_bs <- glm(pval ~ ans_baseline_start, data = h1_data)
+summary(model_bs)
+
+#Scatterplot without scaling
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+h1_data <- as.data.frame(h1_data)
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T) 
+
+ggplot(h1_data, aes(x=qnorm(pval), y=ans_baseline_start)) +
+  geom_point() +
+  geom_smooth(method=lm, se=FALSE)
+```
