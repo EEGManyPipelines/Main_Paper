@@ -1,0 +1,8 @@
+# .gitignore
+
+# Folders
+*nobackup*
+Time-series/erplot/plots/
+
+# Files extensions
+*.asv*
