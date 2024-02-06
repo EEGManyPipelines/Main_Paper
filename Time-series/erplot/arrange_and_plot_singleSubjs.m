@@ -76,6 +76,7 @@ for ss = 1:length(subjects)
     cfg.layout      = 'elec1010.lay';
     cfg.showlabels  = 'yes';
     ft_multiplotER(cfg, allgrpdat{gg})
+    
 end
 
 

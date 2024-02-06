@@ -1,11 +1,13 @@
 %% Import and plot EMP ERP data
-
+%
 % For each group:
 %   1) do subj avg
 %   2) do grp grand avg
-% Then collect all data 
+% Then collect all data and do a great grand average. Plot and some misch
+% stats (just for fun for now).
 %
 
+%% SETUP
 % Paths
 datapath = '/home/mikkelcv/emp/main/Time-series/erplot/nobackup/data';
 addpath('/home/mikkelcv/emp/main/Time-series/erplot')
@@ -21,9 +23,10 @@ grps = d(~(strcmp('.',d)|strcmp('..',d)));     % Remove dots
 % List of individual datasets
 subjects = {'sub-001','sub-002','sub-003'};   % use these for now
 
-%% Collect data from all groups. Average withing subject within group, then 
-% average all subjects within group (grand average). Collect grand averages
-% for comparison across groups.
+%% Collect data from all groups. 
+% Average withing subject within group, then average all subjects within 
+% group (grand average). Collect grand averages for comparison across 
+% groups.
 
 % Loop over groups
 allgrpdat = cell(size(grps));
@@ -37,11 +40,16 @@ for gg = 1:length(grps)
 %         ss = 1;
         subj = subjects{ss};
         infile = find_files(fullfile(datapath,grp), subj);
-        fprintf('Loading subj %s for group %s (%i of %i)...\n', subj, grp, gg, length(grps));
-    
+
         % NEED CHECK TO SEE IF FILE EXIST (in case grp rejected subjs)
         % - are rejected subject data still in folders? If so, we should
         % remove it when doing grand average.
+        if isempty(infile)
+            warning('Found no subj %s for group %s!\n', subj, grp);
+            continue
+        else
+            fprintf('Loading subj %s for group %s (%i of %i)...\n', subj, grp, gg, length(grps));
+        end
 
         % Load data
         subjdat = load(fullfile(datapath, grp, infile{:}));
@@ -81,6 +89,11 @@ for gg = 1:length(grps)
 %     cfg.showlabels  = 'yes';
 %     ft_multiplotER(cfg, allgrpdat{gg} )
 end
+
+%% ########################################################################
+% End of data collection seteps. Below here are some tests doing plots and
+% other on the collected data structure. It might be a good idea to save
+% the data structure instead and do these steps in sperate scripts.
 
 %% Plot
 cfg = [];
