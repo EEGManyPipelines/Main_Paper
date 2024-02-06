@@ -256,6 +256,20 @@ IDs[indx_bhfdr,]
 table(h1_data$mc_method_h1[indx_ID_mt])
 table(h1_data$stat_method_h1)
 
+#boxplot of original pvalues to compare
+library(ggplot2)
+orig_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+orig_data <- as.data.frame(h1_data)
+indx_no_mt <- which(orig_data$ans_mt_h1==F,arr.ind=TRUE)
+indx_mt <- which(orig_data$ans_mt_h1==T,arr.ind=TRUE)
+ggplot(orig_data, aes(x=as.factor(ans_mt_h1), y=pval)) + 
+  geom_boxplot(fill="slateblue", alpha=0.2) + 
+  xlab("multiple comparisons")+
+  geom_text(x=1, y=1, label=median(orig_data$pval[indx_no_mt], na.rm = T), size = 3)+
+  geom_text(x=2, y=0.7, label=median(orig_data$pval[indx_mt], na.rm = T), size = 3)#+ylim(min(orig_data$pval), 0.05)
+
+cor.test(orig_data$pval, qnorm(1-orig_data$pval))
+hist(qnorm(orig_data$pval, sd = 1, lower.tail = F))
 
 #------------------------------------------------------------------------------------------------------------------------------------
 # Old part of the code
