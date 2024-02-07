@@ -9,9 +9,11 @@
 
 %% SETUP
 % Paths
+
 datapath = '/home/mikkelcv/emp/main/Time-series/erplot/nobackup/data';
 addpath('/home/mikkelcv/emp/main/Time-series/erplot')
 addpath('/home/mikkelcv/fieldtrip/')
+
 ft_defaults;
 
 % Find group folders
@@ -23,21 +25,21 @@ grps = d(~(strcmp('.',d)|strcmp('..',d)));     % Remove dots
 % List of individual datasets
 subjects = {'sub-001','sub-002','sub-003'};   % use these for now
 
-%% Collect data from all groups. 
-% Average withing subject within group, then average all subjects within 
-% group (grand average). Collect grand averages for comparison across 
+%% Collect data from all groups.
+% Average withing subject within group, then average all subjects within
+% group (grand average). Collect grand averages for comparison across
 % groups.
 
 % Loop over groups
 allgrpdat = cell(size(grps));
 for gg = 1:length(grps)
-%     gg=1;
+    %     gg=1;
     grp = grps{gg};
 
     % loop over subjects
     allsubjdat = cell(size(subjects));
     for ss = 1:length(subjects)
-%         ss = 1;
+        %         ss = 1;
         subj = subjects{ss};
         infile = find_files(fullfile(datapath,grp), subj);
 
@@ -53,27 +55,27 @@ for gg = 1:length(grps)
 
         % Load data
         subjdat = load(fullfile(datapath, grp, infile{:}));
-        
+
         % Average all trials (not careing about conditions for now!)
         subjdat.avgdat = double(mean(subjdat.data, 3));      % dim 3 = trials
         label = cell(length(subjdat.chs_name),1);
         for x = 1:length(subjdat.chs_name)
             label{x} = strtrim(subjdat.chs_name(x,:));
         end
-    
+
         fttmp = [];
         fttmp.avg       = subjdat.avgdat;
         fttmp.time      = subjdat.time;
         fttmp.label     = label;
         fttmp.dimord    = 'chan_time';
-    %     ft_datatype(tmp)
-    
-    %     % Inspect (uncomment)
-    %     cfg = [];
-    %     cfg.layout      = 'elec1010.lay';
-    %     cfg.showlabels  = 'yes'
-    %     ft_multiplotER(cfg, tmp)
-    
+        %     ft_datatype(tmp)
+
+        %     % Inspect (uncomment)
+        %     cfg = [];
+        %     cfg.layout      = 'elec1010.lay';
+        %     cfg.showlabels  = 'yes'
+        %     ft_multiplotER(cfg, tmp)
+
         allsubjdat{ss} = fttmp;
         disp('done');
         clear subjdat infile
@@ -84,10 +86,10 @@ for gg = 1:length(grps)
     clear allsubjdata
 
     % Inspect (uncomment)
-%     cfg = [];
-%     cfg.layout      = 'elec1010.lay';;
-%     cfg.showlabels  = 'yes';
-%     ft_multiplotER(cfg, allgrpdat{gg} )
+    %     cfg = [];
+    %     cfg.layout      = 'elec1010.lay';;
+    %     cfg.showlabels  = 'yes';
+    %     ft_multiplotER(cfg, allgrpdat{gg} )
 end
 
 %% ########################################################################

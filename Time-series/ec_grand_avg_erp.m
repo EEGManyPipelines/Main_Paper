@@ -72,5 +72,5 @@ tw_end = min(last) % 746
      indx_x = data_out(f).time >= 0 & data_out(f).time <=746 
      x = data_out(f).time(indx_x)
      y =  data_out(f).avg_cpz_erp(indx_x)
-     figure, plot(x, y)
+     plot(x, y, 'LineWidth',1.5), hold on
  end

@@ -95,8 +95,8 @@ shapiro.test(mynumericdata$hf_cutoff)#no data is normal
 ## Z-score p-values and normalize numeric data
 ```{r}
 
-hist(qnorm(1-dependent_h1$pval))
-pval_zscore <- qnorm(1-dependent_h1$pval)
+hist(qnorm(dependent_h1$pval/2, lower.tail = F))
+pval_zscore <- qnorm(dependent_h1$pval/2, lower.tail = F)
 
 indx_inf <- which(!is.finite(pval_zscore))
 pval_zscore <- pval_zscore[-indx_inf] # remove the infinite value due to a mistakenly assigned 0 to pval it also takeS NAN values
@@ -196,8 +196,8 @@ ggplot(orig_data, aes(x=as.factor(ans_mt_h1), y=pval)) +
   geom_text(x=1, y=1, label=median(orig_data$pval[indx_no_mt], na.rm = T), size = 3)+
   geom_text(x=2, y=1, label=median(orig_data$pval[indx_mt], na.rm = T), size = 3)#+ylim(min(orig_data$pval), 0.05)
 
-cor.test(orig_data$pval, qnorm(1-orig_data$pval))
-cor.test(orig_data$pval, qnorm(orig_data$pval))
+cor.test(orig_data$pval, qnorm(orig_data$pval/2, lower.tail = F))
+cor.test(orig_data$pval, qnorm(orig_data$pval/2, lower.tail = F))
 
 ```
 
