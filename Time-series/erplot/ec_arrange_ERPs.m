@@ -45,7 +45,7 @@ end
 allgrpdat = cell(size(grps));
 cnt = 0; % variable that storees how many data
 
-for gg = 21:40%length(grps)
+for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory problems
 
     disp(['Processing participant... ',num2str(gg)])
 
@@ -54,6 +54,7 @@ for gg = 21:40%length(grps)
     % A special case - when a single team has more than 1 file, skip the
     % second file
     if endsWith(grp, '_2.mat'), continue, end
+    allsubjdata = [];
 
     % Load data
     groupdat = load(fullfile(datapath, grp));
@@ -62,25 +63,29 @@ for gg = 21:40%length(grps)
     % If data is not epoched - skip it. TO DO: epoch non-epoched data
     if numel(size(groupdat(1).EEGts)) < 3 %check how many dimensions EEGts has. if it's conitnuous data:
         cnt = cnt + 1;
+        clear groupdat
         continue
     else
         allsubjdat = []
 
         %Loop over participants
-        for ss = 1:size(groupdat,2)
+        while size(groupdat,2) > 0 % saving memory in the workspace
             % Average all trials (not careing about conditions for now!)
-            sbj_avg_epoch = double(mean(groupdat(ss).EEGts, 3));      % dim 3 = trials
+            sbj_avg_epoch = double(mean(groupdat(1).EEGts, 3));      % dim 3 = trials
 
             % Find CPz channel
             %find_cpz = find(ismember(groupdat(ss).chan, 'CPz'));
             if ~isempty(sbj_avg_epoch)
                 fttmp = [];
                 fttmp.avg       = sbj_avg_epoch;%sbj_avg_epoch(find_cpz,:)
-                fttmp.time      = groupdat(ss).time;
-                fttmp.label     = groupdat(ss).chan;
+                fttmp.time      = groupdat(1).time;
+                fttmp.label     = groupdat(1).chan;
                 fttmp.dimord    = 'chan_time';
-
+                groupdat(1) = [];
                 allsubjdat{size(allsubjdat,2)+1} = fttmp; % Avoids empty entries
+                clear sbj_avg_epoch fttmp
+            else
+               groupdat(1) = [];
             end
         end
         disp('done');
@@ -93,7 +98,7 @@ for gg = 21:40%length(grps)
             groupdat = load(fullfile(datapath, grp));
             groupdat = groupdat.(string(fieldnames(groupdat)))
 
-            for ss = 1:size(groupdat,2)
+             while size(groupdat,2) > 0 
                 % Average all trials (not careing about conditions for now!)
                 sbj_avg_epoch = double(mean(groupdat(ss).EEGts, 3));      % dim 3 = trials
 
@@ -106,8 +111,10 @@ for gg = 21:40%length(grps)
                     fttmp.time      = groupdat(ss).time;
                     fttmp.label     = groupdat(ss).chan;
                     fttmp.dimord    = 'chan_time';
-
+                    groupdat(1) = []
                     allsubjdat{size(allsubjdat,2)+1} = fttmp;
+                   clear sbj_avg_epoch fttmp
+
                 end
             end
             disp('done');
@@ -117,83 +124,7 @@ for gg = 21:40%length(grps)
 
     % Make grand avg
     allgrpdat{gg} = ft_timelockgrandaverage([], allsubjdat{:});
-    clear allsubjdata
-
+    clear allsubjdat
 end
-
-%% ########################################################################
-% End of data collection seteps. Below here are some tests doing plots and
-% other on the collected data structure. It might be a good idea to save
-% the data structure instead and do these steps in sperate scripts.
-
-
-% remove empty entries due to continuous or corrupt data files
-allgrpdat_full = allgrpdat(~cellfun(@isempty, allgrpdat))
-
-%% Plot
-cfg = [];
-cfg.layout      = 'elec1010.lay';
-cfg.showlabels  = 'yes';
-ft_multiplotER(cfg, allgrpdat_full{2:5}) % Expects all datasets to have the same sampling rate!!!
-
-cfg.channel = {'CPz'}
-cfg.parameter = 'avg'
-
-ft_singleplotER(cfg, allgrpdat_full{2:5}) % % Expects all datasets to have the same sampling rate!!! Use a simple plotting function below?
-
-fig=figure
-for p = 1:length(allgrpdat_full)
-    cpz_indx = strcmp(allgrpdat_full{p}.label, 'FCz')
-    % if the format is not channels x times, but times x channels
-    if size(allgrpdat_full{p}.avg,1) > size(allgrpdat_full{p}.avg,2) 
-        y = allgrpdat_full{p}.avg(:,cpz_indx); % CPz
-    else
-      y = allgrpdat_full{p}.avg(cpz_indx,:); % CPz
-    end
-    x = allgrpdat_full{p}.time;
-    plot(x,y, 'LineWidth',1.2) ,fontsize(fig, 15, "points"), xlim([-100, 500]), title('Great Grand Average (FCz), N=18'),...
-    xlabel('Time(ms)'), ylabel('uV'), hold on
-end
-
-
-
-greatgrandavg = ft_timelockgrandaverage([], allgrpdat_full{:});
-
-cfg = [];
-cfg.layout      = 'elec1010.lay';
-cfg.showlabels  = 'yes';
-cfg.parameter   = 'var';
-ft_multiplotER(cfg, greatgrandavg)
-
-
-
-%% Dispersion
-cfg = [];
-cfg.keepindividual = 'yes';
-ggdat = ft_timelockgrandaverage(cfg, allgrpdat_full{:});
-
-ampMat = 1.4826*mad(ggdat.individual, 1, 3)';
-dispersion = 1.4826*mad(ampMat,1,2) ./ median(ampMat,2);
-
-cfg = [];
-cfg.avgovertime = 'yes';
-dispdat = ft_selectdata(cfg, greatgrandavg);
-dispdat.dispersion = dispersion;
-
-cfg = [];
-cfg.layout      = 'elec1010.lay';
-cfg.showlabels  = 'no';
-cfg.parameter   = 'dispersion';
-ft_topoplotER(cfg, dispdat)
-
-%% Alpha
-% reshap
-X = reshape(ggdat.individual, [3,63*90]);
-
-alf = reliability_analysis(X,'interval');
-
-
-
-
-
+%save('allgrpdat_54_60.mat', 'allgrpdat')
 
