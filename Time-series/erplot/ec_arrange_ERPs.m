@@ -45,7 +45,7 @@ end
 allgrpdat = cell(size(grps));
 cnt = 0; % variable that storees how many data
 
-for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory problems
+for gg = 90:length(grps) % File 24-26, 69, 89 could not be loaded due to memory problems. Files 65 and 66 (same group) did not provide channel and time info, file 86 has no time info
 
     disp(['Processing participant... ',num2str(gg)])
 
@@ -53,8 +53,9 @@ for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory probl
 
     % A special case - when a single team has more than 1 file, skip the
     % second file
-    if endsWith(grp, '_2.mat'), continue, end
-    allsubjdata = [];
+    if endsWith(grp, '_2.mat')
+        continue
+    end
 
     % Load data
     groupdat = load(fullfile(datapath, grp));
@@ -85,7 +86,7 @@ for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory probl
                 allsubjdat{size(allsubjdat,2)+1} = fttmp; % Avoids empty entries
                 clear sbj_avg_epoch fttmp
             else
-               groupdat(1) = [];
+                groupdat(1) = [];
             end
         end
         disp('done');
@@ -98,9 +99,9 @@ for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory probl
             groupdat = load(fullfile(datapath, grp));
             groupdat = groupdat.(string(fieldnames(groupdat)))
 
-             while size(groupdat,2) > 0 
+            while size(groupdat,2) > 0
                 % Average all trials (not careing about conditions for now!)
-                sbj_avg_epoch = double(mean(groupdat(ss).EEGts, 3));      % dim 3 = trials
+                sbj_avg_epoch = double(mean(groupdat(1).EEGts, 3));      % dim 3 = trials
 
                 % Find CPz channel
                 %find_cpz = find(ismember(groupdat(ss).chan, 'CPz'));
@@ -108,13 +109,14 @@ for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory probl
                 if ~isempty(sbj_avg_epoch)
                     fttmp = [];
                     fttmp.avg       = sbj_avg_epoch;%sbj_avg_epoch(find_cpz,:)
-                    fttmp.time      = groupdat(ss).time;
-                    fttmp.label     = groupdat(ss).chan;
+                    fttmp.time      = groupdat(1).time;
+                    fttmp.label     = groupdat(1).chan;
                     fttmp.dimord    = 'chan_time';
                     groupdat(1) = []
                     allsubjdat{size(allsubjdat,2)+1} = fttmp;
-                   clear sbj_avg_epoch fttmp
-
+                    clear sbj_avg_epoch fttmp
+                else
+                    groupdat(1) = []
                 end
             end
             disp('done');
@@ -122,9 +124,25 @@ for gg = 54:60%length(grps) % File 24-26 could not be loaded due to memory probl
         end
     end
 
+    % special cases when some manipulation is needed due to a format
+    if isequal(grp,'d9a070789fe1b133.mat')
+        for i = 1:33
+            allsubjdat{i}.label = allsubjdat{i}.label{1:end};
+        end
+    elseif isequal(grp,'d5c8ed05b7af02a3.mat')
+        chan_labels = allgrpdat{74}.label
+        for i=1:33
+            curr_lab = allsubjdat{i}.label;
+            curr_lab(curr_lab == -1) = 0;
+            allsubjdat{i}.label = chan_labels(find(curr_lab));
+            allsubjdat{i}.avg = allsubjdat{i}.avg(find(curr_lab),:);
+            clear curr_lab
+        end
+    end
+
     % Make grand avg
     allgrpdat{gg} = ft_timelockgrandaverage([], allsubjdat{:});
     clear allsubjdat
 end
-%save('allgrpdat_54_60.mat', 'allgrpdat')
+save('allgrpdat_61_90.mat', 'allgrpdat')
 
