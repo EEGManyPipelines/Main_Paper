@@ -1,14 +1,58 @@
+rm(list = ls())
+
+#install.packages("jtools")
+library(jtools)
 library(readxl)
 library(car)
+library(ggplot2)
 
 #Loading the data
-dataPath <- "C:\\Users\\ecesnait\\Downloads\\all_var_AQ_h1_(version_3).xlsx"
-data <- read_excel(dataPath, col_names = TRUE)
-head(data)
+#dataPath <- "C:\\Users\\ecesnait\\Downloads\\all_var_AQ_h1_(version_3).xlsx"
+#data <- read_excel(dataPath, col_names = TRUE)
+#head(data)
+
+# use h1_data frame from another script for completeness
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+h1_data <- as.data.frame(h1_data)
+
+# --------------------
+# Correct values
+# --------------------
+
+# Software
+h1_data$software[h1_data$software== 'eeglab_erplab'] <- 'eeglab'
+h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
+
+#Fill in empty responses
+# High-pass filter type & direction
+h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
+
+h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
+
+# Segment exclusion criteria
+h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
+
+#Time window start, end & length
+#exchange missing values to the mean of the column
+h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
+h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
+h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
+# ICA algorythm
+h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
+
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T) 
+
+#remove binary response
+data <- h1_data[,c(-1,-27)]
 
 #Converting the categorical variables in the data to factors
 data$software <- as.factor(data$software)
-data$hf_cutoff <- as.factor(data$hf_cutoff)
+#data$hf_cutoff <- as.factor(data$hf_cutoff) # not a categorical variable?
 data$ans_hf_type <- as.factor(data$ans_hf_type)
 data$ans_hf_direction <- as.factor(data$ans_hf_direction)
 data$reref <- as.factor(data$reref)
@@ -23,22 +67,62 @@ data$ans_ica_algo <- as.factor(data$ans_ica_algo)
 data$ans_bad_comp_sel_visual <- as.factor(data$ans_bad_comp_sel_visual)
 data$ans_bad_comp_sel_plugin <- as.factor(data$ans_bad_comp_sel_plugin)
 
+# outliers removal
+hf_out <- boxplot(data$hf_cutoff)$out
+data$hf_cutoff[which(data$hf_cutoff == hf_out)] <- mean((data$hf_cutoff), na.rm = T) # removed one team that had 3 for a  HP filter
+
+# from p-val to z-val
+hist(qnorm(data$pval))
+data$pval <- qnorm(data$pval)#qnorm(0.975,mean=0,sd=1)
+
+# look if there are any NaN values
+which(is.na(data),arr.ind=TRUE) # 
+
+# Caution: remove them from the dataset
+data <- data[-160,]
+
+continuous <- c(3, 7, 8, 10, 16:18, 23:25)
+
+#normalizing data
+for (i in 1:length(continuous)) {
+  contin_data_col <- data[,continuous[i]]
+  data[,continuous[i]] <- scale(contin_data_col)
+}
+## ------------------------------------------------------------------------------------
+
+# Remove/keep one of: time window start, stop, length; Baseline start, stop, length
+data_tw_start_stop <- data[,c(-18,-25)]
+data_tw_full <- data[,c(-16,-17,-23,-24)]
+
 #Approach 1. Using the step function.
 #Checking different models using the step function. 
-fullmodel<- lm(z_value~ . , data = data)
+fullmodel<- lm(pval~ . , data = data_tw_start_stop)
 summary(fullmodel)
-stepwise_model <- step(fullmodel, direction = "both", trace = FALSE, k = log(nrow(data)))
+stepwise_model <- step(fullmodel, direction = "both", trace = FALSE, k = log(nrow(data_tw_start_stop)))
 summary(stepwise_model)
 all_aic_values = data.frame(stepwise_model$anova$Step,stepwise_model$anova$AIC)
 
-#The factors that had the most effect on the model are:nr_chan_h1,ans_mt_h1,bs_window_length 
+#The factors that had the most effect on the model are:nr_chan_h1,ans_mt_h1,bs_window_start
 #So I decided to use those along with their interaction effect
-interactionformula = z_value~nr_chan_h1 + ans_mt_h1 + bs_window_length + 
-  nr_chan_h1*ans_mt_h1 + nr_chan_h1*bs_window_length + ans_mt_h1*bs_window_length
+interactionformula = pval~ ans_mt_h1 + ans_baseline_start + ans_mt_h1*ans_baseline_start
 
-interactionmodel <- lm(interactionformula, data=data)
+interactionmodel <- lm(interactionformula, data=data_tw_start_stop)
 
 summary(interactionmodel)
+summ(interactionmodel, confint = TRUE, digits = 4) # nicer vizualisation
+
+#add fitted regression line to scatterplot
+fit <-  lm(pval ~ ans_baseline_start, data=data_tw_start_stop)
+#create scatterplot
+plot(pval ~ ans_baseline_start, data=data_tw_start_stop)
+abline(fit)
+
+#Interaction
+ggplot(data=data_tw_start_stop, aes(x=ans_baseline_start, y=pval, group=ans_mt_h1))+
+  geom_point(size=2, aes(color=ans_mt_h1))+
+  ylab("pval")+
+  xlab("baseline start")+
+  ggtitle("Interaction effect")
 
 #Approach 2. Manually selecting the variables to include in the model
 #Setting the formulas for the models that we would like to compare

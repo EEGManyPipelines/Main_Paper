@@ -1,7 +1,8 @@
 clear all, close all
 
 % Load data %
-load('allgrpdat_1_90.mat')
+ load('allgrpdat_1_90.mat')
+
 datapath = 'N:\EMP\EEGManyPipelines\EMP data extracted\';
 grps = dir([datapath, '*.mat'])
 
@@ -27,16 +28,17 @@ end
 %% Plot
 
 fig=figure
-col = parula(70), n_plot = 0
+col = parula(length(allgrpdat_full)), n_plot = 0
 for p = 1:length(allgrpdat_full)
     cpz_indx = strcmp(allgrpdat_full{p}.label, 'FCz')
+    
     % if the format is not channels x times, but times x channels
     if size(allgrpdat_full{p}.avg,1) > size(allgrpdat_full{p}.avg,2) 
         y = allgrpdat_full{p}.avg(:,cpz_indx); % CPz
     else
       y = allgrpdat_full{p}.avg(cpz_indx,:); % CPz
     end
-    if ismember(p, [19, 31, 35, 45, 53,58]) %max(y) > 10 % p=19, 31, 35, 45, 48
+    if ismember(p, [19, 31, 35, 45, 53,58,95]) %max(y) > 10 % p=19, 31, 35, 45, 48, 95 - FCz not found
         continue
          x = allgrpdat_full{p}.time;
          figure, plot(x,y, 'LineWidth',1.2) ,fontsize(fig, 15, "points"), title(['Great Grand Average (FCz), p=',num2str(p)]),...
@@ -65,4 +67,4 @@ w_end = AQ.ans_temp_roi_tw_end_h1
 xbar = [100 200]
 patch([xbar(1) xbar(1), xbar(2) xbar(2)],[min(ylim) max(ylim) max(ylim) min(ylim)], [0.8 0.8 0.8], 'FaceAlpha',.2,'EdgeColor',[0.8 0.8 0.8])
 
-saveas(fig,'GGA_ERP_64.png')
+saveas(fig,'GGA_ERP_97.png')

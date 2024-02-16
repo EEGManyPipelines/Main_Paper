@@ -12,7 +12,7 @@ clear all, close all
 user_name = getenv('username');
 
 if isequal(user_name, 'ecesnait')
-    datapath = 'N:\EMP\EEGManyPipelines\EMP data extracted\';
+    datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
     addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\')
     addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\Matlab Scripts\toolboxes\fieldtrip-master\')
 
@@ -45,7 +45,7 @@ end
 allgrpdat = cell(size(grps));
 cnt = 0; % variable that storees how many data
 
-for gg = 90:length(grps) % File 24-26, 69, 89 could not be loaded due to memory problems. Files 65 and 66 (same group) did not provide channel and time info, file 86 has no time info
+for gg = 1:length(grps) % File 24-26, 69, 89 could not be loaded due to memory problems. Files 65 and 66 (same group) did not provide channel and time info, file 86 has no time info
 
     disp(['Processing participant... ',num2str(gg)])
 
