@@ -102,7 +102,7 @@ stepwise_model <- step(fullmodel, direction = "both", trace = FALSE, k = log(nro
 summary(stepwise_model)
 all_aic_values = data.frame(stepwise_model$anova$Step,stepwise_model$anova$AIC)
 
-#The factors that had the most effect on the model are:nr_chan_h1,ans_mt_h1,bs_window_start
+#The factors that had the most effect on the model are: ans_mt_h1,bs_window_start
 #So I decided to use those along with their interaction effect
 interactionformula = pval~ ans_mt_h1 + ans_baseline_start + ans_mt_h1*ans_baseline_start
 
@@ -120,9 +120,14 @@ abline(fit)
 #Interaction
 ggplot(data=data_tw_start_stop, aes(x=ans_baseline_start, y=pval, group=ans_mt_h1))+
   geom_point(size=2, aes(color=ans_mt_h1))+
-  ylab("pval")+
+  ylab("qnorm(pval)")+
   xlab("baseline start")+
   ggtitle("Interaction effect")
+
+## Check assumptions ##
+
+par(mfrow = c(2, 2))
+plot(interactionmodel)
 
 #Approach 2. Manually selecting the variables to include in the model
 #Setting the formulas for the models that we would like to compare

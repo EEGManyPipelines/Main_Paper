@@ -3,10 +3,11 @@ clear all, close all
 % Load data %
  load('allgrpdat_1_90.mat')
 
-datapath = 'N:\EMP\EEGManyPipelines\EMP data extracted\';
+datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
 grps = dir([datapath, '*.mat'])
 
 allgrpdat_joined(2,:) = {grps.name}
+%save('allgrpdat_1_90.mat','allgrpdat_joined')
 % 
 % % Join all
 % allgrpdat_joined = [allgrpdat1.allgrpdat(1:20), allgrpdat2.allgrpdat(21:23), allgrpdat3.allgrpdat(24:34), allgrpdat4.allgrpdat(35:53), allgrpdat5.allgrpdat(54:60), ...

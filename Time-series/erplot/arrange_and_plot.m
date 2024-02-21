@@ -8,11 +8,19 @@
 %
 
 %% SETUP
+clear all, close all
 % Paths
+user_name = getenv('username');
 
-datapath = '/home/mikkelcv/emp/main/Time-series/erplot/nobackup/data';
-addpath('/home/mikkelcv/emp/main/Time-series/erplot')
-addpath('/home/mikkelcv/fieldtrip/')
+if isequal(user_name, 'ecesnait')
+    datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\';
+    addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\')
+    addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\Matlab Scripts\toolboxes\fieldtrip-master\')
+elseif isequal(user_name,'mikkelcv')
+    datapath = '/home/mikkelcv/emp/main/Time-series/erplot/nobackup/data';
+    addpath('/home/mikkelcv/emp/main/Time-series/erplot')
+    addpath('/home/mikkelcv/fieldtrip/')
+end
 
 ft_defaults;
 
