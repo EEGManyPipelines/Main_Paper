@@ -1,7 +1,7 @@
 clear all, close all
 
 % Load data %
- load('allgrpdat_1_90.mat')
+ load('allgrpdat_1_126.mat')
 
 datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
 grps = dir([datapath, '*.mat'])
@@ -19,12 +19,17 @@ allgrpdat_joined(2,:) = {grps.name}
 allgrpdat_full = allgrpdat_joined(:,~cellfun(@isempty, allgrpdat_joined(1,:)))
 
 % correct time for some teams
-bad = [19,31, 35, 45, 47, 48, 53,58,62] % indx of bad ERPs
-wrong_time = bad([5,6,9])
+bad = [13,19,31, 35, 45, 47, 48, 53,58,62] % indx of bad ERPs
+wrong_time = bad([1,6,7,10])
 
 for i= 1:length(wrong_time)
-    allgrpdat_full{wrong_time(i)}.time=allgrpdat_full{wrong_time(i)}.time * 1000 % from seconds to ms
+    if i == 1 % 0 is start of the epoch and 1000 is stimulus presentation
+        allgrpdat_full{wrong_time(i)}.time = allgrpdat_full{wrong_time(i)}.time - 1000 % 
+    else
+       allgrpdat_full{wrong_time(i)}.time = allgrpdat_full{wrong_time(i)}.time * 1000 % from seconds to ms
+    end
 end
+
 
 %% Plot
 

@@ -1,5 +1,5 @@
 % Load data
-load('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\allgrpdat files\allgrpdat_1_90.mat')
+load('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\allgrpdat files\allgrpdat_1_126.mat')
 allgrpdat_full = allgrpdat_joined(:,~cellfun(@isempty, allgrpdat_joined(1,:)))
 
 % correct time for some teams
@@ -55,13 +55,13 @@ end
 
 %% Plot
 fig=figure
-col = parula(70), n_plot = 0
+col = parula(length(allgrpdat_full)), n_plot = 0
 data = avg_ref_data
 what_to_plot = 'data_bsl'
 plot_title = 'avg ref bsl'
 
 for p = 1:length(data)
-    if ismember(p, [19, 31, 35, 45, 53,58]) %max(y) > 10 % p=19, 31, 35, 45, 48
+    if ismember(p, [19, 31, 35, 45, 53,58,95]) %max(y) > 10 % p=19, 31, 35, 45, 48, 95 has no FCZ
         continue
     end
     cpz_indx = strcmp(data{p}.label, 'FCz')
@@ -80,4 +80,6 @@ for p = 1:length(data)
 end
 fontsize(fig, 15, "points"),  title([plot_title,', N=', num2str(n_plot)]),...
     xlabel('Time(ms)'), ylabel('uV'), xlim([-100, 500])
+xl = xline(0, '--', 'stimulus')
+xl.LabelVerticalAlignment = 'middle';
 saveas(fig,'GGA_ERP_avg_ref_same_bsl.png')
