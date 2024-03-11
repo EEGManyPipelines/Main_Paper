@@ -1,19 +1,7 @@
 clear all, close all
 
 % Load data %
- load('allgrpdat_1_126.mat')
-
-datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
-grps = dir([datapath, '*.mat'])
-
-allgrpdat_joined(2,:) = {grps.name}
-%save('allgrpdat_1_90.mat','allgrpdat_joined')
-% 
-% % Join all
-% allgrpdat_joined = [allgrpdat1.allgrpdat(1:20), allgrpdat2.allgrpdat(21:23), allgrpdat3.allgrpdat(24:34), allgrpdat4.allgrpdat(35:53), allgrpdat5.allgrpdat(54:60), ...
-%     allgrpdat6.allgrpdat(61:90)]
-
-%save('allgrpdat_1_90.mat', 'allgrpdat_joined')
+ load('allgrpdat_1_147.mat')
 
 % remove empty entries due to continuous or corrupt data files
 allgrpdat_full = allgrpdat_joined(:,~cellfun(@isempty, allgrpdat_joined(1,:)))
@@ -24,9 +12,9 @@ wrong_time = bad([1,6,7,10])
 
 for i= 1:length(wrong_time)
     if i == 1 % 0 is start of the epoch and 1000 is stimulus presentation
-        allgrpdat_full{wrong_time(i)}.time = allgrpdat_full{wrong_time(i)}.time - 1000 % 
+        allgrpdat_full{1,wrong_time(i)}.time = allgrpdat_full{1,wrong_time(i)}.time - 1000 % 
     else
-       allgrpdat_full{wrong_time(i)}.time = allgrpdat_full{wrong_time(i)}.time * 1000 % from seconds to ms
+       allgrpdat_full{1,wrong_time(i)}.time = allgrpdat_full{1,wrong_time(i)}.time * 1000 % from seconds to ms
     end
 end
 
@@ -36,21 +24,23 @@ end
 fig=figure
 col = parula(length(allgrpdat_full)), n_plot = 0
 for p = 1:length(allgrpdat_full)
-    cpz_indx = strcmp(allgrpdat_full{p}.label, 'FCz')
+    cpz_indx = strcmp(allgrpdat_full{1,p}.label, 'FCz')
     
     % if the format is not channels x times, but times x channels
-    if size(allgrpdat_full{p}.avg,1) > size(allgrpdat_full{p}.avg,2) 
-        y = allgrpdat_full{p}.avg(:,cpz_indx); % CPz
+    if size(allgrpdat_full{1,p}.avg,1) > size(allgrpdat_full{1,p}.avg,2) 
+        y = allgrpdat_full{1,p}.avg(:,cpz_indx); % CPz
+    elseif p == 112
+        y = squeeze(allgrpdat_full{1,p}.avg(:,46,:)); % CPz
     else
-      y = allgrpdat_full{p}.avg(cpz_indx,:); % CPz
+      y = allgrpdat_full{1,p}.avg(cpz_indx,:); % CPz
     end
-    if ismember(p, [19, 31, 35, 45, 53,58,95]) %max(y) > 10 % p=19, 31, 35, 45, 48, 95 - FCz not found
+    if ismember(p, [19, 31, 35, 45, 53,58,95,108,111]) %max(y) > 10 % p=19, 31, 35, 45, 48, 95 and 108,111 - FCz not found
         continue
-         x = allgrpdat_full{p}.time;
+         x = allgrpdat_full{1,p}.time;
          figure, plot(x,y, 'LineWidth',1.2) ,fontsize(fig, 15, "points"), title(['Great Grand Average (FCz), p=',num2str(p)]),...
             xlabel('Time(ms)'), ylabel('uV')
     end
-   x = allgrpdat_full{p}.time;
+   x = allgrpdat_full{1,p}.time;
    plot(x,y, 'Color', col(p,:),'LineWidth', 1.2), hold on
    n_plot = n_plot+1
 end
@@ -73,4 +63,4 @@ w_end = AQ.ans_temp_roi_tw_end_h1
 xbar = [100 200]
 patch([xbar(1) xbar(1), xbar(2) xbar(2)],[min(ylim) max(ylim) max(ylim) min(ylim)], [0.8 0.8 0.8], 'FaceAlpha',.2,'EdgeColor',[0.8 0.8 0.8])
 
-saveas(fig,'GGA_ERP_97.png')
+saveas(fig,'GA_ERP_110.png')

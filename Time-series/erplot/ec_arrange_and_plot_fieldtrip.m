@@ -35,7 +35,7 @@ grps = {d.name};
 
 % Loop over groups
 allgrpdat = {};
-for gg = 2:length(grps) %3 out of memory
+for gg = 22:length(grps) %4 and 5 (same group),20 could not open,9 and 10 on epoched, 11,15,21 out of memory,13 processed but had different dimensions
     %     gg=1;
     grp = grps{gg};
     disp(['Processing participant... ',num2str(gg)])
@@ -43,8 +43,11 @@ for gg = 2:length(grps) %3 out of memory
     teamID = extractBefore(grp,'_')
 
     % Load data
-    %chan_time_epoch = load(fullfile(datapath,[teamID,'_BAD_chan_trial.mat']));
-    EEG = load(fullfile(datapath,[teamID,'_EEG3d_struct.mat']));
+    if strcmp(teamID, '1497d4b19bba4f30')% could not open
+        continue
+    else
+        EEG = load(fullfile(datapath,[teamID,'_EEG3d_struct.mat']));
+    end
 
     % Check if data is epoched. If not, skip this subject
     if numel(size(EEG.team_eeg(1).eeg3d)) < 3
@@ -56,17 +59,29 @@ for gg = 2:length(grps) %3 out of memory
         %Loop over participants
         while size(groupdat,2) > 0 % saving memory in the workspace
             % check for excluded channels
-            if ~isempty(groupdat(1).excluded_sensor)
-                excl_chan = regexp(string(groupdat(1).excluded_sensor), '\s','split');
-                indx_excl_chan = find(ismember(groupdat(1).chan_label, excl_chan));
-                groupdat(1).eeg3d(indx_excl_chan,:,:)=[];
-                groupdat(1).chan_label(indx_excl_chan)=[];
-            end
+%             if ~isempty(groupdat(1).excluded_sensor)
+%                 if isfield(groupdat(1).excluded_sensor,'channels_rejected') %|| sum(strcmp(groupdat(1).excluded_sensor.Properties.VariableNames, 'channels_rejected'))
+%                     excl_chan = regexp(string(groupdat(1).excluded_sensor.channels_rejected), '\s','split');
+%                     indx_excl_chan = find(ismember(groupdat(1).chan_label, [excl_chan{:}]));
+% %                 elseif sum(strcmp(groupdat(1).excluded_sensor.Properties.VariableNames, 'Afp9_reject'))
+% %                     excl_chan= extractBefore(groupdat(1).excluded_sensor.Afp9_reject,',')
+% %                     indx_excl_chan = find(ismember(groupdat(1).chan_label, excl_chan));
+%                 elseif isnumeric(groupdat(1).excluded_sensor)
+%                     indx_excl_chan = groupdat(1).excluded_sensor;
+%                 else
+%                     excl_chan = regexp(string(groupdat(1).excluded_sensor), '/s','split');
+%                     indx_excl_chan = find(ismember(groupdat(1).chan_label, excl_chan));
+%                 end
+%                   if isempty(excl_chan)
+%                         error('did not catch channels')
+%                         excl_chan = regexp(string(groupdat(1).excluded_sensor), ',','split');
+%                   end
+%                 groupdat(1).eeg3d(indx_excl_chan,:,:)=[];
+%                 groupdat(1).chan_label(indx_excl_chan)=[];
+%             end
             % Average all trials (not careing about conditions for now!)
             sbj_avg_epoch = double(mean(groupdat(1).eeg3d, 3));      % dim 3 = trials
 
-            % Find CPz channel
-            %find_cpz = find(ismember(groupdat(ss).chan, 'CPz'));
             if ~isempty(sbj_avg_epoch)
                 fttmp = [];
                 fttmp.avg       = sbj_avg_epoch;%sbj_avg_epoch(find_cpz,:)
