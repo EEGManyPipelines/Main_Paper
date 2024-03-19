@@ -1,14 +1,13 @@
 clear all, close all
 
 % Load data %
- load('allgrpdat_1_147.mat')
+load('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\allgrpdat files\allgrpdat_1_147_Andrea_memory.mat')
 
 % remove empty entries due to continuous or corrupt data files
 allgrpdat_full = allgrpdat_joined(:,~cellfun(@isempty, allgrpdat_joined(1,:)))
 
 % correct time for some teams
-bad = [13,19,31, 35, 45, 47, 48, 53,58,62] % indx of bad ERPs
-wrong_time = bad([1,6,7,10])
+wrong_time = [13, 47, 48, 62, 95]
 
 for i= 1:length(wrong_time)
     if i == 1 % 0 is start of the epoch and 1000 is stimulus presentation
