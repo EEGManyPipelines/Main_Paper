@@ -7,32 +7,15 @@ allgrpdat_joined(2,:) = IDs_stand
 % remove empty entries due to continuous or corrupt data files
 allgrpdat_full = allgrpdat_joined(:,~cellfun(@isempty, allgrpdat_joined(1,:)))
 
-%correct team IDs
+% get mean varaibility per team per channel
 
-% correct time for some teams
-wrong_time = [13, 47, 48, 62, 95]
-
-for i= 1:length(wrong_time)
-    if i == 1 % 0 is start of the epoch and 1000 is stimulus presentation
-        allgrpdat_full{1,wrong_time(i)}.time = allgrpdat_full{1,wrong_time(i)}.time - 1000 % 
-    else
-       allgrpdat_full{1,wrong_time(i)}.time = allgrpdat_full{1,wrong_time(i)}.time * 1000 % from seconds to ms
-    end
-end
-
-% calculate the mean N1 amplitude in a time window between 100-120ms
-n1_amp = table()
-n1_amp.chan = allgrpdat_full{1,1}.label(1:64)
-
-tstart = 100 % time window for N100 avg
-tstop = 120
+variance = table()
+variance.chan = allgrpdat_full{1,1}.label(1:64)
 
 allgrpdat_full{1,2}.label{end} = 'Cz' % a typo
 
-for pp = 60:length(allgrpdat_full)
-     xstart = dsearchn(allgrpdat_full{1,pp}.time', tstart)
-     xstop  = dsearchn(allgrpdat_full{1,pp}.time', tstop)
-
+for pp = 4:length(allgrpdat_full)
+    
        % if the format is not channels x times, but times x channels
     if size(allgrpdat_full{1,pp}.avg,1) > size(allgrpdat_full{1,pp}.avg,2) 
         allgrpdat_full{1,pp}.avg = allgrpdat_full{1,pp}.avg';
@@ -53,22 +36,45 @@ for pp = 60:length(allgrpdat_full)
 %        figure, plot(allgrpdat_full{1,pp}.time,allgrpdat_full{1,pp}.avg),xlim([-100,200])
     end
 
-    chan_n1 = mean(allgrpdat_full{1,pp}.avg(:,xstart:xstop),2); % average N1 a,plitude in all channels
+    team_var = mean(allgrpdat_full{1,pp}.var,2); % average N1 a,plitude in all channels
 
-    [indx_chan, pl_chan] = ismember(n1_amp.chan, allgrpdat_full{1,pp}.label)
+    [indx_chan, pl_chan] = ismember(variance.chan, allgrpdat_full{1,pp}.label)
     name = allgrpdat_full{2,pp}
 
     if sum(pl_chan == 0)
         indx_zero = find(pl_chan == 0)
-        n1_amp.(name)(indx_zero) = nan()
-        n1_amp.(name)(setdiff([1:64]',indx_zero)) = chan_n1(pl_chan(indx_chan));
+        variance.(name)(indx_zero) = nan()
+        variance.(name)(setdiff([1:64]',indx_zero)) = team_var(pl_chan(indx_chan));
         
     else
-        n1_amp.(name) = chan_n1(pl_chan)
+        variance.(name) = team_var(pl_chan)
     end
 
-    clear chan_n1 indx_chan pl_chan indx_zero
+    clear team_var indx_chan pl_chan indx_zero
 end
 
-save('n1_amplitude_120','n1_amp')
-writetable(n1_amp,'n1_amplitudes_120.csv', 'Delimiter',',')
+save('variance_120','variance')
+
+%% Plot %%
+addpath C:\Users\ecesnait\Desktop\EEGManyPipelines\Matlab Scripts\toolboxes\eeglab_current\eeglab2022.0\
+eeglab
+
+%Load channel locations of the dataset
+load('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\N100\chan_locs_CORENATS')
+chan_locs = chan_locs(ismember({chan_locs.labels}, variance.chan)) 
+
+% check if there are teams that have a amplitude scale in 10^-6
+colum_mean = nanmean(abs(table2array(variance(:,2:end))))
+teams_low_scale = find(colum_mean<10^-10)%find teams that have this scale
+var_data_normalized = table2array(variance(:,2:end));
+var_data_normalized(:,teams_low_scale) = var_data_normalized(:,teams_low_scale)*10^12;
+colum_mean = nanmean(abs(var_data_normalized))
+
+avg_var_all_teams = nanmedian(var_data_normalized, 2); % median across teams
+
+fig=figure, topoplot(avg_var_all_teams, chan_locs, 'electrodes', 'labels', 'maplimits', 'maxmin'), title('All teams', 'FontSize',15),
+colorbar,
+c = colorbar
+c.Label.String = 'var'
+c.FontSize = 15
+saveas(fig,'variance_topoplot_113.png')

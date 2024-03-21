@@ -1,3 +1,5 @@
+rm(list = ls())
+
 ################################
 # Entropy Analysis
 
@@ -7,46 +9,101 @@ install.packages("entropy")
 library(entropy)
 
 # Loading the data
-dataPath <- "C:\\Users\\User\\Desktop\\Neurocognitive\\Internship\\munster\\Vibration_of_effect\\all_var_AQ_h1_(version_5).xlsx"
-data <- read_excel(dataPath, col_names = TRUE)
-head(data)
+data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+h1_data <- data[,c(-1,-27,-28)]
+h1_data <- as.data.frame(h1_data)
 
-#Converting all the variables in the data to factors
-data$software <- as.factor(data$software)
-data$hf_cutoff <- as.factor(data$hf_cutoff)
-data$ans_hf_type <- as.factor(data$ans_hf_type)
-data$ans_hf_direction <- as.factor(data$ans_hf_direction)
-data$reref <- as.factor(data$reref)
-data$topo_region_h1 <- as.factor(data$topo_region_h1)
-data$ans_exclusion_criteria_seg <- as.factor(data$ans_exclusion_criteria_seg)
-data$mc_method_h1 <- as.factor(data$mc_method_h1)
-data$stat_method_h1 <- as.factor(data$stat_method_h1)
-data$ans_spa_roi_avg_h1 <- as.factor(data$ans_spa_roi_avg_h1)
-data$ans_mt_h1 <- as.factor(data$ans_mt_h1)
-data$ans_temp_roi_avg_h1 <- as.factor(data$ans_temp_roi_avg_h1)
-data$ans_ica_algo <- as.factor(data$ans_ica_algo)
-data$ans_bad_comp_sel_visual <- as.factor(data$ans_bad_comp_sel_visual)
-data$ans_bad_comp_sel_plugin <- as.factor(data$ans_bad_comp_sel_plugin)
-data$z_value = qnorm(data$pval)
-data$ds_fs <- as.factor(data$ds_fs)
-data$subj_excluded <- as.factor(data$subj_excluded)
-data$nr_chan_h1 <- as.factor(data$nr_chan_h1)
-data$ans_time_w_start_h1 <- as.factor(data$ans_time_w_start_h1)
-data$ans_time_w_end_h1 <- as.factor(data$ans_time_w_end_h1)
-data$ans_baseline_start <- as.factor(data$ans_baseline_start)
-data$ans_baseline_stop <- as.factor(data$ans_baseline_stop)
+## --------------------
+# Correct values
+## --------------------
+
+# Software
+h1_data$software[h1_data$software== 'eeglab_erplab'] <- 'eeglab'
+h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
+
+#Fill in empty responses
+# High-pass filter type & direction
+h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
+
+h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
+
+# Segment exclusion criteria
+h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
+
+#Time window start, end & length
+#exchange missing values to the mean of the column
+h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
+
+h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
+h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
+# ICA algorythm
+h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
+
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+
+h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T)
+
+# Change baseline window length 0 to the mean of the column because 0 is dragging the effect
+h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_window_length[h1_data$bs_window_length != 0], na.rm = T) 
+
+#all columns to factors
+h1_data <- lapply(h1_data, as.factor)
 
 # Select the features that I would like to calculate the entropy for
-feature_data <- data[, 1:22]
+#feature_data <- h1_data[, 1:22]
 
 # Need to convert the factors to character vectors for the entropy package to work
-encoded_data <- lapply(feature_data, function(x) as.numeric(factor(x)))
+encoded_data <- lapply(h1_data, function(x) as.numeric(factor(x)))
 
-# Calculate entropy for each feature
+# Calculate rpobabilities for each variable each list
+#prob_encoded_data <- as.data.frame(table(encoded_data$software)) 
+entropy_all <- c()
+for (i in 1:length(encoded_data)){
+  prob_one <- table(encoded_data[i])/nrow(as.data.frame(encoded_data[i]))
+  entropy_all[i] <- entropy(prob_one, unit= "log2")
+}
+
+plot_entropy <- as.data.frame(entropy_all)
+names(h1_data)
+plot_entropy$class <- names(h1_data)
+  #c("software", "software_host", "hf cutoff", "hf type", "hf direction","reref", "samp freq", "excl subj","topo_region",
+                        "")
+
+# Higher entropy value indicates a more random/uncertain distribution. A lower value indicates more deterministic, predictable distribution 
+par(mar = c(2,10,2,2)) # Set the margin on all sides to 2
+barplot(height=plot_entropy$entropy_all, names=plot_entropy$class, 
+        col="#69b3a2",
+        horiz=T, las=1)
+
+# OR
+#freqs <- table(encoded_data$software)/length(encoded_data$software)
+
+# Calculate entropy for each feature - SHOULD BE DONE ON THE PROBABILITIES OF THE EVENT AND NOT THE LIST OF EVENTS!
+entropy(prob_one,unit = "log2")
+
+
+
+## BELOW IS ANAS SOLUTION ##
 entropy_values <- lapply(encoded_data, entropy)
+entropy(encoded_data)
+
+freqs_values <- lapply(encoded_data, freqs)
 
 # Print the results
-print(entropy_values)
+print(freqs_values)
+
+plot_entropy <- data.frame(entropy_values)
+#library(data.table)
+plot_entropy <- melt(plot_entropy)
+
+par(mar = c(2,10,2,2)) # Set the margin on all sides to 2
+barplot(height=plot_entropy$value, names=plot_entropy$variable, 
+        col="#69b3a2",
+        horiz=T, las=1)
 
 ################################
 # Kullback-Leibler divergence.
