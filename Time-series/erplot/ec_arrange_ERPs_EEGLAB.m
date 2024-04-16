@@ -12,7 +12,7 @@ clear all, close all
 user_name = getenv('username');
 
 if isequal(user_name, 'ecesnait')
-    datapath = 'N:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
+    datapath = 'M:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams\';
     addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\Time-series\erplot\')
     addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\Matlab Scripts\toolboxes\fieldtrip-master\')
 
@@ -67,24 +67,41 @@ for gg = 1:length(grps) % File 24-26, 69, 89 could not be loaded due to memory p
         clear groupdat
         continue
     else
-        allsubjdat = []
+        allsubjdat_manmade = []
+        allsubjdat_natural = []
 
         %Loop over participants
         while size(groupdat,2) > 0 % saving memory in the workspace
             % Average all trials (not careing about conditions for now!)
-            sbj_avg_epoch = double(mean(groupdat(1).EEGts, 3));      % dim 3 = trials
+            %sbj_avg_epoch = double(mean(groupdat(1).EEGts, 3));      % dim 3 = trials
 
-            % Find CPz channel
-            %find_cpz = find(ismember(groupdat(ss).chan, 'CPz'));
-            if ~isempty(sbj_avg_epoch)
-                fttmp = [];
-                fttmp.avg       = sbj_avg_epoch;%sbj_avg_epoch(find_cpz,:)
-                fttmp.time      = groupdat(1).time;
-                fttmp.label     = groupdat(1).chan;
-                fttmp.dimord    = 'chan_time';
+            % Split based on condition: man-made vs natural for H1
+            % events fro man-made stimuli starts with 1 and natural starts with 2 
+            indx_manmade = find(strcmp([groupdat(1).epoch.eventscene_category], 'manmade'));
+            indx_natural = find(strcmp([groupdat(1).epoch.eventscene_category], 'natural'));
+
+            manmade_avg_epoch = double(mean(groupdat(1).EEGts(:,:,indx_manmade), 3));
+            natural_avg_epoch = double(mean(groupdat(1).EEGts(:,:,indx_natural), 3));
+
+            if ~isempty(manmade_avg_epoch)
+                fttmp_manmade = [];
+                fttmp_manmade.avg       = manmade_avg_epoch;%sbj_avg_epoch(find_cpz,:)
+                fttmp_manmade.time      = groupdat(1).time;
+                fttmp_manmade.label     = groupdat(1).chan;
+                fttmp_manmade.dimord    = 'chan_time';
+
+                fttmp_natural = [];
+                fttmp_natural.avg       = natural_avg_epoch;%sbj_avg_epoch(find_cpz,:)
+                fttmp_natural.time      = groupdat(1).time;
+                fttmp_natural.label     = groupdat(1).chan;
+                fttmp_natural.dimord    = 'chan_time';
+
+                %delete entry
                 groupdat(1) = [];
-                allsubjdat{size(allsubjdat,2)+1} = fttmp; % Avoids empty entries
-                clear sbj_avg_epoch fttmp
+                allsubjdat_manmade{size(allsubjdat_manmade,2)+1} = fttmp_manmade; % Avoids empty entries
+                allsubjdat_natural{size(allsubjdat_natural,2)+1} = fttmp_natural; % Avoids empty entries
+
+                clear manmade_avg_epoch natural_avg_epoch fttmp_natural fttmp_manmade
             else
                 groupdat(1) = [];
             end
@@ -92,7 +109,8 @@ for gg = 1:length(grps) % File 24-26, 69, 89 could not be loaded due to memory p
         disp('done');
         clear groupdat infile
 
-        % Special cases when a single team has more than 1 file
+        % Special cases when a single team has more than 1 file - STILL
+        % NEEDS UPDATE  
         if endsWith(grp, '_1.mat')
             % Load data
             grp = grps{gg+1}
@@ -142,6 +160,14 @@ for gg = 1:length(grps) % File 24-26, 69, 89 could not be loaded due to memory p
 
     % Make grand avg
     allgrpdat{gg} = ft_timelockgrandaverage([], allsubjdat{:});
+    
+    %plot
+    figure,
+            plot(groupdat(1).time, manmade_avg_epoch(32,:),'LineWidth',1), hold on
+            plot(groupdat(1).time,natural_avg_epoch(32,:),'LineWidth',1), legend({'man made', 'natural'})
+            fig = gcf
+            exportgraphics(fig, 'ERPs_condition_EEGLAB.pdf','Append',true)
+            close(fig)
     clear allsubjdat
 end
 save('allgrpdat_61_90.mat', 'allgrpdat')
