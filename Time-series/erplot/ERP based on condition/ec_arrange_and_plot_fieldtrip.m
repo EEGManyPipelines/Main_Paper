@@ -58,12 +58,12 @@ for gg = 4:length(grps) %4 and 5 (same group),20 could not open,9 and 10 on epoc
         allsubjdat_manmade = []
         allsubjdat_natural = []
 
-         num_trials(gg).Team_Id = grp;
+         num_trials(gg).Team_Id = grp;% add team ID to count the number of epochs
         groupdat = EEG.team_eeg; % un-nest
 
         %% Loop over participants
         while size(groupdat,2) > 0 % saving memory in the workspace
-            if isempty(groupdat(1).epoch)
+            if isempty(groupdat(1).epoch)%if epoch structure is empty -> skip the team
                 groupdat(1) = [];
                 continue
             end
@@ -73,28 +73,33 @@ for gg = 4:length(grps) %4 and 5 (same group),20 could not open,9 and 10 on epoc
                 if isa(groupdat(1).excluded_sensor, 'table')
                     indx_excl_ch = find(ismember(groupdat(1).chan_label,groupdat(1).excluded_sensor.channels_rejected))
                 else
-                indx_excl_ch = find(ismember(groupdat(1).chan_label,split(groupdat(1).excluded_sensor)))
+                    indx_excl_ch = find(ismember(groupdat(1).chan_label,split(groupdat(1).excluded_sensor)))
                 end
+                % check if the dimensions are correct in the EEG struct and
+                % remove
                 if size(groupdat(1).eeg3d,1) == length(groupdat(1).chan_label)
                     groupdat(1).eeg3d(indx_excl_ch,:,:) = [];
-                    groupdat(1).chan_label(indx_excl_ch)=[];
+                    groupdat(1).chan_label(indx_excl_ch)=[]; % remove it also from the channel label struct
                 else
                     error('check dimensions')
                 end
             end
 
-            % epochs have already been deleted
+            % epochs have already been deleted - the dataset has all epochs
+            % and additional info at the excluded_epoch column
             if size(groupdat(1).eeg3d,3) == 1200 && ~isempty(groupdat(1).excluded_epoch)
                     error('epochs have not been removed?')
             end
+
            % Split based on condition: man-made vs natural for H1
             char_type = num2str(groupdat(1).epoch)
-            indx_manmade = find(char_type(:,1)=='1');
-            indx_natural = find(char_type(:,1)=='2');
+            indx_manmade = find(char_type(:,1)=='1'); %all markers for man-made stimuli start with 1
+            indx_natural = find(char_type(:,1)=='2');%all markers for natural stimuli start with 2
             clear char_type
 %                 indx_manmade = find(strcmp([groupdat(1).epoch], 'manmade'));
 %                 indx_natural = find(strcmp([groupdat(1).epoch.eventscene_category], 'natural'));
             
+            % Average across epochs based on condition
              manmade_avg_epoch = double(mean(groupdat(1).eeg3d(:,:,indx_manmade), 3));
             natural_avg_epoch = double(mean(groupdat(1).eeg3d(:,:,indx_natural), 3));
 
@@ -102,7 +107,7 @@ for gg = 4:length(grps) %4 and 5 (same group),20 could not open,9 and 10 on epoc
             num_trials(gg).manmade_natural(34-size(groupdat,2),1) = length(indx_manmade);
             num_trials(gg).manmade_natural(34-size(groupdat,2),2) = length(indx_natural);
 
-            if ~isempty(manmade_avg_epoch)
+            if ~isempty(manmade_avg_epoch) % prepare the fttmp struct for man-made and natural data separately
                 [fttmp_manmade, fttmp_natural] = ec_ssubj_erp_condition(groupdat, manmade_avg_epoch, natural_avg_epoch)
 
                 %delete entry
@@ -128,7 +133,10 @@ for gg = 4:length(grps) %4 and 5 (same group),20 could not open,9 and 10 on epoc
 
         % Load data
         EEG = load(fullfile(datapath,[teamID,'_EEG3d_struct_28_33.mat']));
-error('check this specific case')
+
+        %the code has to be adjusted here for both conditions separately
+        error('check this specific case')
+       
         % Check if data is epoched. If not, skip this subject
         if numel(size(EEG.team_eeg(1).eeg3d)) < 3
             continue
