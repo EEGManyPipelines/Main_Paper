@@ -4,7 +4,7 @@ rm(list = ls())
 # Entropy Analysis
 
 # Install the entropy package 
-install.packages("entropy")
+#install.packages("entropy")
 
 library(entropy)
 
@@ -50,6 +50,7 @@ h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans
 # Change baseline window length 0 to the mean of the column because 0 is dragging the effect
 h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_window_length[h1_data$bs_window_length != 0], na.rm = T) 
 
+# ------------------ START ----------------------------
 #all columns to factors
 h1_data <- lapply(h1_data, as.factor)
 
@@ -64,20 +65,39 @@ encoded_data <- lapply(h1_data, function(x) as.numeric(factor(x)))
 entropy_all <- c()
 for (i in 1:length(encoded_data)){
   prob_one <- table(encoded_data[i])/nrow(as.data.frame(encoded_data[i]))
-  entropy_all[i] <- entropy(prob_one, unit= "log2")
+  entropy_one <- entropy(prob_one, unit= "log2")
+  entropy_all[i] <- entropy_one/log2(nrow(table(encoded_data[i])))
 }
 
 plot_entropy <- as.data.frame(entropy_all)
 names(h1_data)
-plot_entropy$class <- names(h1_data)
-  #c("software", "software_host", "hf cutoff", "hf type", "hf direction","reref", "samp freq", "excl subj","topo_region",
-                        "")
+plot_entropy$class <- c("software", "software host", "hf cutoff", "hf type", "hf direction","reref", "samp freq", "excl subj","topo region",
+                        "nr chan", "seg excl crit", "mc method", "stat method", "avg spa", "mc", "tw start", "tw end", "tw length", "avg temp",
+                        "ica alg", "visual bad cmp", "plugin bad cmp", "bsl start", "bsl stop", "bsl length")
+
+tiff("C:/Users/ecesnait/Desktop/EEGManyPipelines/Figures/entropy analytic decisions wl.png", units="in", width=7, height=7, res=300)
 
 # Higher entropy value indicates a more random/uncertain distribution. A lower value indicates more deterministic, predictable distribution 
 par(mar = c(2,10,2,2)) # Set the margin on all sides to 2
 barplot(height=plot_entropy$entropy_all, names=plot_entropy$class, 
-        col="#69b3a2",
-        horiz=T, las=1)
+        col="#69b3a2", xlim = c(0,1),main="Entropy of analytic decisions",cex.lab=2,
+        horiz=T, las=1,cex.names=1.2,cex.axis=1.5)+abline(v = 0.96, col="red", lwd=2, lty=2)+
+  abline(v = 0.7, col="grey", lwd=2, lty=2)
+dev.off()
+
+# Same plot using dplyr
+library(dplyr)
+library(ggplot2)
+
+plot_entropy %>%
+  arrange(entropy_all) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  mutate(name=factor(class, levels=class)) %>%   # This trick update the factor levels
+  ggplot( aes(x=class, y=entropy_all)) +
+  geom_segment( aes(xend=name, yend=0.3)) +
+  geom_point( size=4, color="orange") +
+  coord_flip() +
+ theme(axis.text=element_text(size=12))+
+  ylab("Normalized entropy") + xlab("Analytic choices")
 
 # OR
 #freqs <- table(encoded_data$software)/length(encoded_data$software)

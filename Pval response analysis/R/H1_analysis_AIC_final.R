@@ -29,6 +29,10 @@ h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
 
 h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
 
+#filter type
+table(h1_data$ans_hf_type)
+h1_data$ans_hf_type[h1_data$ans_hf_type == 'IIR'] <- 'hf_iir'
+
 # Segment exclusion criteria
 h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
 
@@ -55,6 +59,7 @@ h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_windo
 
 #remove binary response
 data <- h1_data[,c(-1,-27)]
+data$ans_ica_algo[data$ans_ica_algo=='runica'] <- 'infomax'
 
 ## --------------------
 # outliers removal
@@ -95,26 +100,26 @@ for (i in 1:length(continuous)) {
 }
 
 
-## --------------------
-# combine multiple comparison and statistical test columns (avoid the cluster problem)
-## --------------------
+# --------------------
+#combine multiple comparison and statistical test columns (avoid the cluster problem)
+# --------------------
+# #
+# table(data$mc_method_h1)
+# # add correction method next to the stat model
+# for (i in 1:nrow(data)) {
+#   if (data$mc_method_h1[i] == 'bonferroni') {
+#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bonf')
+#   } else if (data$mc_method_h1[i] == 'bhfdr') {
+#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bhfdr')
+#   } else if (data$mc_method_h1[i] =='holm-bonferroni'){
+#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_hbonf')
+#   }else if (data$mc_method_h1[i] =='rft'){
+#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_rft')
+#   }
+# }
 # 
-table(data$mc_method_h1)
-# add correction method next to the stat model
-for (i in 1:nrow(data)) {
-  if (data$mc_method_h1[i] == 'bonferroni') {
-    data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bonf')
-  } else if (data$mc_method_h1[i] == 'bhfdr') {
-    data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bhfdr')
-  } else if (data$mc_method_h1[i] =='holm-bonferroni'){
-    data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_hbonf')
-  }else if (data$mc_method_h1[i] =='rft'){
-    data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_rft')
-  }
-}
-
-# Now i can remove the multiple comparisons questions from the table
-data <- data[,c(-12)]
+# # Now i can remove the multiple comparisons questions from the table
+# data <- data[,c(-12)]
 
 ## ------------------------------------------------------------------------------------
 
@@ -136,42 +141,43 @@ data$ans_bad_comp_sel_visual <- as.factor(data$ans_bad_comp_sel_visual)
 data$ans_bad_comp_sel_plugin <- as.factor(data$ans_bad_comp_sel_plugin)
 
  #---------------------------------------------------------------------------------------------------------------------------
-#remove dummy variables that have too few observations
-#install.packages('fastDummies')
-library(fastDummies)
-dummy_data <- dummy_cols(data, remove_selected_columns = TRUE)
-#remove columns with few observations
-n=1
-columns_exclude <- c()
-for (i in 12:length(dummy_data)) {
-  if (sum(dummy_data[,i]) < 6) {
-    columns_exclude[n] = i
-    n = n+1
-  }
-}
-names <- colnames(dummy_data)
-names[columns_exclude]
-dummy_data <- dummy_data[,-columns_exclude]
+# #remove dummy variables that have too few observations
+# #install.packages('fastDummies')
+# library(fastDummies)
+# dummy_data <- dummy_cols(data, remove_selected_columns = TRUE)
+# #remove columns with few observations
+# n=1
+# columns_exclude <- c()
+# for (i in 12:length(dummy_data)) {
+#   if (sum(dummy_data[,i]) < 6) {
+#     columns_exclude[n] = i
+#     n = n+1
+#   }
+# }
+# names <- colnames(dummy_data)
+# names[columns_exclude]
+# dummy_data <- dummy_data[,-columns_exclude]
 
 #---------------------------------------------------------------------------------------------------------------------------
 
 # exclude variables that have high collinearity >0.6
-collinearity_indx <- match(c("topo_region_h1",
-                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start", "ans_hf_direction"), colnames(data)) # 37
+collinearity_indx <- match(c("topo_region_h1","ans_software_host","mc_method_h1",
+                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start","ans_hf_direction","software"), colnames(data)) # 37
+
 data_reduced <- data[,-collinearity_indx] 
 #inclusing categorical data
 #install.packages('ggcorrplot')
 library(ggcorrplot)
 library(tidyr)
-#inclusing categorical data
-#install.packages('ggcorrplot')
-library(ggcorrplot)
-library(tidyr)
-#find the ones above 0.8
+#find the ones above 0.6
 all_cor <- model.matrix(~0+., data=data_reduced) %>% 
   cor(use="pairwise.complete.obs")
 which(abs(all_cor)>0.6 & abs(all_cor)!=1, arr.ind=TRUE) # 
+
 cor(data_reduced$hf_cutoff, data_reduced$ds_fs)
+
+# Visualizing the correlation matrix
+image(all_cor, main = "Correlation Matrix", col = colorRampPalette(c("blue", "white", "red"))(20))
 
 #---------------------------------------------------------------------------------------------------------------------------
 
@@ -179,9 +185,12 @@ cor(data_reduced$hf_cutoff, data_reduced$ds_fs)
 #Checking different models using the step function. 
 fullmodel<- lm(pval~ . , data = data_reduced)
 summary(fullmodel)
+car::vif(fullmodel)
+
 
 # Stepwise model
-stepwise_model <- step(fullmodel, direction = "both", trace = T, k = log(nrow(data_reduced)))
+library(MASS)
+stepwise_model <- stepAIC(fullmodel, direction = "both", trace = T, k = log(nrow(data_reduced)))
 summary(stepwise_model)
 
 all_aic_values = data.frame(stepwise_model$anova$Step,stepwise_model$anova$AIC)
@@ -191,7 +200,9 @@ all_aic_values = data.frame(stepwise_model$anova$Step,stepwise_model$anova$AIC)
 
 winmodel <- lm(pval~ bs_window_length+ans_mt_h1+bs_window_length*ans_mt_h1, data=data_reduced)
 
-summary(winmodel)
+winmodel2 <- lm(pval~nr_chan_h1 + ans_mt_h1 + bs_window_length + nr_chan_h1*ans_mt_h1+ bs_window_length*ans_mt_h1,data=data_reduced)
+
+summary(winmodel2)
 summ(winmodel, confint = TRUE, digits = 4) # nicer vizualisation
 
 #add fitted regression line to scatterplot
