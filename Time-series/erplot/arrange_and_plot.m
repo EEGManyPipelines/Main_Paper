@@ -120,7 +120,28 @@ cfg.parameter   = 'var';
 ft_multiplotER(cfg, greatgrandavg)
 
 
-%% Dispersion
+%% Plot variability
+% Coef of Var
+cfg = [];
+cfg.keepindividual = 'yes';
+ggdat = ft_timelockgrandaverage(cfg, allgrpdat{:});
+
+
+% Coef. of Var.
+codat = removefields(ggdat, 'individual');
+codat.dimord = 'chan_time';
+
+codat.cvar = squeeze(std(ggdat.individual)./mean(ggdat.individual));        % Normal CoV
+codat.rvar = squeeze(mad(ggdat.individual)./median(ggdat.individual));      % Robust CoV
+
+cfg = [];
+cfg.layout      = 'elec1010.lay';
+cfg.showlabels  = 'yes';
+cfg.parameter   = 'cvar';
+ft_multiplotER(cfg, codat)
+
+
+% Dispersion
 cfg = [];
 cfg.keepindividual = 'yes';
 ggdat = ft_timelockgrandaverage(cfg, allgrpdat{:});
