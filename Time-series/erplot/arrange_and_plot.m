@@ -30,8 +30,9 @@ d = d([d.isdir]);
 d = {d.name};
 grps = d(~(strcmp('.',d)|strcmp('..',d)));     % Remove dots
 
+
 % List of individual datasets
-subjects = {'sub-001','sub-002','sub-003'};   % use these for now
+subjects = {'sub-001','sub-002','sub-003', 'sub-004'};   % use these for now
 
 %% Collect data from all groups.
 % Average withing subject within group, then average all subjects within
@@ -40,6 +41,7 @@ subjects = {'sub-001','sub-002','sub-003'};   % use these for now
 
 % Loop over groups
 allgrpdat = cell(size(grps));
+allSemDat = cell(size(grps));
 for gg = 1:length(grps)
     %     gg=1;
     grp = grps{gg};
@@ -62,6 +64,7 @@ for gg = 1:length(grps)
         end
 
         % Load data
+
         subjdat = load(fullfile(datapath, grp, infile{:}));
 
         % Average all trials (not careing about conditions for now!)
@@ -89,8 +92,23 @@ for gg = 1:length(grps)
         clear subjdat infile
     end
 
+    allsubjdat = allsubjdat(~cellfun(@isempty, allsubjdat));
+
     % Make grand avg
     allgrpdat{gg} = ft_timelockgrandaverage([], allsubjdat{:});
+
+    cfg = [];
+    cfg.keepindividual = 'yes';
+    tmp = ft_timelockgrandaverage(cfg, allsubjdat{:});
+    
+    semDat = [];
+    semDat.label  = tmp.label;
+    semDat.time   = tmp.time;
+    semDat.dimord = 'chan_time';
+    semDat.sem    = squeeze(std(tmp.individual,1)./sqrt(size(tmp.individual,1)));
+    semDat.sem2   = semDat.sem.^2;
+
+    allSemDat{gg} = semDat; 
     clear allsubjdata
 
     % Inspect (uncomment)
@@ -116,16 +134,21 @@ greatgrandavg = ft_timelockgrandaverage([], allgrpdat{:});
 cfg = [];
 cfg.layout      = 'elec1010.lay';
 cfg.showlabels  = 'yes';
-cfg.parameter   = 'var';
+cfg.parameter   = 'avg';
 ft_multiplotER(cfg, greatgrandavg)
 
-
-%% Plot variability
-% Coef of Var
+%% Collect data in one big matrix
 cfg = [];
 cfg.keepindividual = 'yes';
 ggdat = ft_timelockgrandaverage(cfg, allgrpdat{:});
 
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Plot variability
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Option A: Coef of Var
+% Is not valid as it cannot handle data with both positive and negative
+% values.
 
 % Coef. of Var.
 codat = removefields(ggdat, 'individual');
@@ -140,8 +163,83 @@ cfg.showlabels  = 'yes';
 cfg.parameter   = 'cvar';
 ft_multiplotER(cfg, codat)
 
+%% Option B: Median Absolute Devidation (MAD)
+% Good easy to use and interpret metric.
 
-% Dispersion
+% Use this to get all GA data in a [ team x channel x time ] matrix
+cfg = [];
+cfg.keepindividual = 'yes';
+ggDat = ft_timelockgrandaverage(cfg, allgrpdat{:});
+
+madDat = [];
+madDat.label    = ggDat.label;
+madDat.time     = ggDat.time;
+madDat.dimord   = 'chan_time';
+madDat.mad      = squeeze(mad(ggdat.individual, 1, 1)); 
+
+% Plot
+cfg = [];
+cfg.layout      = 'elec1010.lay';
+cfg.showlabels  = 'no';
+cfg.parameter   = 'mad';
+ft_multiplotER(cfg, madDat)
+
+
+% pltmax = max(max(madDat.mad));
+% pltmin = 0; % min(min(madDat.mad))
+
+quantile(madDat.mad(:), [.05, .95])
+
+tbins = -0.2:0.1:0.4;
+figx = figure();
+cfg = [];
+cfg.parameter   = 'mad';
+cfg.layout      = 'elec1010.lay';
+cfg.zlim = quantile(madDat.mad(:), [.05, .95]);  %[min(min(madDat.mad)), max(max(madDat.mad))];
+cfg.figure = figx;
+
+for tt = 1:(length(tbins)-1)
+    subplot(1, length(tbins)-1, tt)
+
+    cfg.xlim = [tbins(tt), tbins(tt+1)];
+    ft_topoplotER(cfg, madDat)
+
+end
+
+
+%% Standard Measurement Error 
+% cf. Luck et al. - in the paper they explicitly mention that this metric
+% is illdefined for group level data for some reason? Perhaps we should not
+% go for it here?
+
+cfg = [];
+cfg.keepindividual  = 'yes';
+cfg.parameter       = 'sem2';
+tmp = ft_timelockgrandaverage(cfg, allSemDat{:});
+
+
+MSsme = [];
+MSsme.label    = MSsmeDat.label;
+MSsme.time     = MSsmeDat.time;
+MSsme.dimord   = 'chan_time';
+MSsme.MSsem    = squeeze(mean(tmp.individual, 1)); 
+
+% Plot
+cfg = [];
+cfg.layout      = 'elec1010.lay';
+cfg.showlabels  = 'no';
+cfg.parameter   = 'mad';
+ft_multiplotER(cfg, madDat)
+
+
+varTotal = squeeze(var(ggdat.individual, 1))
+varTrue = varTotal - MSsme.MSsem
+% This gave negative values - not sure why.
+
+
+%% Option C: Dispersion
+% Cf. ...
+
 cfg = [];
 cfg.keepindividual = 'yes';
 ggdat = ft_timelockgrandaverage(cfg, allgrpdat{:});
@@ -161,7 +259,7 @@ cfg.parameter   = 'dispersion';
 ft_topoplotER(cfg, dispdat)
 
 %% Alpha
-% reshap
+% reshape
 X = reshape(ggdat.individual, [3,63*90]);
 
 alf = reliability_analysis(X,'interval');
