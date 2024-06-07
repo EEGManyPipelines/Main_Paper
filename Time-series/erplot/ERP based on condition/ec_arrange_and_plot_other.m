@@ -11,8 +11,8 @@
 clear all, close all
 
 
-datapath = '/data4/gold_projects/ecesnait/EEGManyPipelines/_fieldtrip_data3d/'
-addpath('/data4/gold_projects/ecesnait/EEGManyPipelines/fieldtrip-master/')
+datapath = 'M:\EMP\EEGManyPipelines\EMP time series exp\'
+addpath('C:\Users\ecesnait\Desktop\EEGManyPipelines\Matlab Scripts\toolboxes\fieldtrip-master\')
 
 ft_defaults;
 
