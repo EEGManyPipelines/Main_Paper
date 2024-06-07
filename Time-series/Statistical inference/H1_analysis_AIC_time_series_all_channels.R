@@ -24,6 +24,7 @@ h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
 # h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
 # 
 # h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
+table(h1_data$reref)
 
 #filter type
 table(h1_data$ans_hf_type)
@@ -34,20 +35,20 @@ h1_data$ans_hf_type[h1_data$ans_hf_type == 'IIR'] <- 'hf_iir'
 
 #Time window start, end & length
 #exchange missing values to the mean of the column
-h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
-
-h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
-h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
-# ICA algorythm
-h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
+# h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
+# 
+# h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
+# h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
+# # ICA algorythm
+# h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
 
 #Baseline start and stop
 h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
 h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
 
 h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
-h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
-h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T)
+# h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <-mean((h1_data$ans_baseline_start), na.rm = T) 
+# h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T)
 
 # Change baseline window length 0 to the mean of the column because 0 is dragging the effect
 h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_window_length[h1_data$bs_window_length != 0], na.rm = T) 
@@ -128,21 +129,28 @@ data_reduced<-data_reduced[-43,]
 diff_wave <- diff_wave[-43,]
 #---------------------------------------------------------------------------------------------------------------------------
 
-fullmodel<- lm(diff_wave$CPz~ . , data = data_reduced)
-summary(fullmodel)
 #Approach 1. Using the step function.
 #Checking different models using the step function. 
 #loop over channels
 library(MASS)
 
-sig_names <- data.frame(a=NA, b=NA, c=NA, d=NA, e=NA)
+sig_names <- data.frame(a=NA, b=NA, c=NA, d=NA)
 for (x in 1:64) {
-  fullmodel<- lm(diff_wave[,x+1]~ . , data = data_reduced)
+  # remove outliers
+  cha_diff_wave <- diff_wave[,x+1]
+  lower_bound <-quantile(cha_diff_wave, 0.015, na.rm=T)
+  upper_bound <- quantile(cha_diff_wave, 0.985, na.rm=T)
+  outlier_ind <- which(cha_diff_wave < lower_bound | cha_diff_wave > upper_bound)
+  
+  cha_diff_wave <- cha_diff_wave[-outlier_ind] # remove outliers
+  data_model_chan <- data_reduced[-outlier_ind,]
+  #run a full model first for individual channels
+  fullmodel<- lm(cha_diff_wave~ . , data = data_model_chan)
   
   # Stepwise model
-  stepwise_model <- stepAIC(fullmodel, direction = "both", trace = T, k = log(nrow(data_reduced)))
+  stepwise_model <- stepAIC(fullmodel, direction = "both", trace = T, k = log(nrow(data_model_chan)))
   pvalues <- as.data.frame(summary(stepwise_model)$coefficients[,4])
-  indx_sig <- which(pvalues$`summary(stepwise_model)$coefficients[, 4]`<=0.001)
+  indx_sig <- which(pvalues$`summary(stepwise_model)$coefficients[, 4]`<=0.01)
   if (!any(indx_sig)){
     next
     cat(x)
@@ -160,17 +168,17 @@ for (x in 1:64) {
   sig_names[x,1:length(names_model[indx_sig])] <- names_model[indx_sig]
   
 }
-unique(sig_names)
+# unique(sig_names)
 combined <- as.data.frame(apply(sig_names, 1, 
              function(x) paste(x[!is.na(x)], collapse = ", ")))
 colnames(combined) <- "var"
 classes <- unique(combined)
 colnames(classes) <- "var"
-combined$class <- 0
-for (x in 1:nrow(classes)) {
-  indx <- which(combined$var==classes$var[x])
-  combined$class[indx] <- x
-}
+# combined$class <- 0
+# for (x in 1:nrow(classes)) {
+#   indx <- which(combined$var==classes$var[x])
+#   combined$class[indx] <- x
+# }
 # PLOT DATA ON A TOPOPLOT
 
 myData <-read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/git/EEGManyPipelines-personal/Matlab/Result forms/Data/res_topoplot_h1.csv")
@@ -235,6 +243,7 @@ ggplot(headShape,aes(x,y))+
   geom_path(linewidth = 1.5)+
   geom_point(data = myData,aes(x,y,colour = class),size = 3)+ #note: oob = squish forces everything outside the colour limits to equal nearest colour boundary (i.e. below min colours = min colour)
   geom_line(data = nose,aes(x, y, z = NULL),size = 1.5)+
+  scale_colour_manual(values = MyColor)+
   theme_topo()+ theme(legend.text=element_text(size=15), legend.title = element_text(size=15))+
   coord_equal() 
 #dev.off()
