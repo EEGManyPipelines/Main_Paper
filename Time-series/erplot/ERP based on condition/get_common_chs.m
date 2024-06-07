@@ -19,5 +19,5 @@ for i = 1:numel(all_labels)
     return
   end
   allsubjdat{i}.label = common_chs_new';
-  allsubjdat{i}.avg = allsubjdat{i}.avg(i_common_chs(:,i), :);
+  allsubjdat{i}.avg = allsubjdat{i}.avg(i_common_chs(i,:), :);
 end

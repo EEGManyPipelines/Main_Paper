@@ -45,7 +45,7 @@ end
 num_trials = struct()
 
 % Loop over groups
-for gg = 88:length(grps) % File 12 (same epoch struct for all subjects),16 (epochs uploaded only for natural stimuli), 17 has no epoch info,
+for gg = 87:length(grps) % File 12 (same epoch struct for all subjects),16 (epochs uploaded only for natural stimuli), 17 has no epoch info,
     % 19 data for h3 testing, 23 is continuous data, 39,40 and 88 has more epochs than data,74 has no time info
     % 21,24-26, 69, 89 could not be loaded due to memory problems. Files 65 and 66 (same group) did not provide channel and time info, file 86 has no time info
 
