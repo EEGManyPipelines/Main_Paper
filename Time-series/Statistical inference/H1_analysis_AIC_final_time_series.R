@@ -81,9 +81,9 @@ loc <- match(ID_diff,AQ_ID$Var1, nomatch = 0)
 ID_matched <- AQ_ID$Var1[loc]
 
 setdiff(ID_diff,ID_matched)
-which(ID_diff %in% "TheCodeMechanics")
-ID_diff<- ID_diff[-82]
-diff_wave <- diff_wave[-82,]
+# which(ID_diff %in% "TheCodeMechanics")
+# ID_diff<- ID_diff[-82]
+# diff_wave <- diff_wave[-82,]
 
 data_matched <- data[loc,]
 
