@@ -5,8 +5,8 @@
 % ----------------------------------------------------------------------- %
 %% Set up directories:
 
-dirs            = [];
-dirs.root       = 'C:/Users/johan/OneDrive/Documents/AI_EEGManyPipelines/';
+dirs            = 'C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\';
+dirs.root       = 'M:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams';
 dirs.scripts    = fullfile(dirs.root, 'code/Main_Paper/johannes/timeseries');
 dirs.data       = fullfile(dirs.root, 'data/processedData/timeseries');
 dirs.n100       = fullfile(dirs.data, 'N100 amplitudes');
@@ -31,7 +31,7 @@ ft_default.showlogo = 'no';
 %% Set input settings:
 
 % Desired time settings:
-FS              = 100; % sampling rate in Hz
+FS              = 256; % sampling rate in Hz
 timeWindow      = [-200 500]; % consistent trial epoching (in ms)
 
 timeVecDes      = timeWindow(1):((1/FS)*1000):timeWindow(end); % desired time bins after resampling (in ms)
