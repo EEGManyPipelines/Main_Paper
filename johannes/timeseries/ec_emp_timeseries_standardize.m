@@ -33,9 +33,11 @@ ft_default.showlogo = 'no';
 % Desired time settings:
 FS              = 256; % sampling rate in Hz
 timeWindow      = [-200 600]; % consistent trial epoching (in ms)
-
-timeVecDes      = timeWindow(1):((1/FS)*1000):timeWindow(end); % desired time bins after resampling (in ms)
-nTimeDes        = length(timeVecDes); % number desired time bins
+timeVec_standard1 = flip([ 0 : -1/FS*1000 : timeWindow(1) ]);
+timeVec_standard2        = [ 0 : 1/FS*1000 : timeWindow(2) ];
+timeVec_standard         = [ timeVec_standard1(1:end-1), timeVec_standard2 ];
+%timeVecDes      = timeWindow(1):((1/FS)*1000):timeWindow(end); % desired time bins after resampling (in ms)
+nTimeDes        = length(timeVec_standard); % number desired time bins
 
 % Expected channels:
 % sort(rawData(1).chan_label)'
@@ -68,7 +70,10 @@ fprintf('*** Found %d files:\n%s ***\n', nTeam, strjoin(teamList, ', '));
 % ----------------------------------------------------------------------- %
 %% Loop over teams:
 
-for iTeam = 12:nTeam % 11 problemw it resampling (interpolation problem)
+for iTeam = 1:nTeam % 15 problemw it resampling (interpolation problem) - perhaps the format, 21,24 out of memory
+    if ismember(iTeam,[1,15,21,24]) % skip temporarily
+        continue
+    end
 
     alldatstand = cell(1,nSub)
     if endsWith(teamList{iTeam}, '_2.mat')
@@ -123,6 +128,15 @@ for iTeam = 12:nTeam % 11 problemw it resampling (interpolation problem)
         fprintf('*** Subject %02d: Found data from %d channels, %d time points, %d trials ***\n', ...
             iSub, nChanFound, nTimeFound, nTrialFound);
 
+        %% Keep only the selected channels
+        indx_chan = ismember(rawData(iSub).chan, eegChanVec)
+        rawData(iSub).chan = rawData(iSub).chan(indx_chan)
+        if size(rawData(iSub).EEGts,1) <=72
+           rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:)
+        else
+            error('Elena: isnpect dimentions')
+        end
+
         % --------------------------------------------------------------- %
         %% Create Fieldtrip structure:
         % https://github.com/fieldtrip/fieldtrip/blob/release/utilities/ft_datatype_raw.m
@@ -150,7 +164,7 @@ for iTeam = 12:nTeam % 11 problemw it resampling (interpolation problem)
 
             % Limit new time vector to boundaries of data available:
             fprintf('*** Subject %02d: Resample to new time bins ***\n', iSub);
-            timeVecNew     = timeVecDes(timeVecDes >= rawData(iSub).time(1) & timeVecDes <= rawData(iSub).time(end));
+            timeVecNew     = timeVec_standard(timeVec_standard >= rawData(iSub).time(1) & timeVec_standard <= rawData(iSub).time(end));
 
             cfg                     = [];
             cfg.time                = repmat({timeVecNew}, 1, nTrialFound); % timeVecNew;
