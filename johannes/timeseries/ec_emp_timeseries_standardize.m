@@ -8,7 +8,8 @@ dirs = [];
 dirs.root       = 'C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\';
 dirs.scripts    = fullfile(dirs.root, 'johannes\timeseries');
 dirs.data       = fullfile('M:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams');
-dirs.saveDir = 'M:\EMP\EEGManyPipelines\EMP time series exp\Standardized\'
+dirs.saveDirstand = 'M:\EMP\EEGManyPipelines\EMP time series exp\Standardized\'
+dirs.saveDiravg = 'M:\EMP\EEGManyPipelines\EMP time series exp\TimelockAVG\'
 %dirs.n100       = fullfile(dirs.data, 'N100 amplitudes');
 %dirs.EEG3D      = fullfile(dirs.data, 'EEG3D');
 
@@ -70,12 +71,14 @@ fprintf('*** Found %d files:\n%s ***\n', nTeam, strjoin(teamList, ', '));
 % ----------------------------------------------------------------------- %
 %% Loop over teams:
 
-for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perhaps the format, 21,24 out of memory
+for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perhaps the format, 21,24,69 out of memory, 65,74 - time info missing, 77,78 special case
     if ismember(iTeam,[1,15,21,24]) % skip temporarily
         continue
     end
 
     alldatstand = cell(1,nSub)
+    alldatavg = cell(1,nSub)
+
     if endsWith(teamList{iTeam}, '_2.mat')
         continue
     end
@@ -116,7 +119,7 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
 
     % Loop over found subjects:
     for iSub = 1:nSubFound % iSub = 1;
-
+        clear data4
         fprintf('*** --------------------------------------------- ***\n');
         fprintf('*** Subject %02d: START ***\n', iSub);
 
@@ -127,18 +130,18 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
         nTrialFound         = size(rawData(iSub).EEGts, 3);
         fprintf('*** Subject %02d: Found data from %d channels, %d time points, %d trials ***\n', ...
             iSub, nChanFound, nTimeFound, nTrialFound);
-         if isempty(rawData(iSub).EEGts)
+        if isempty(rawData(iSub).EEGts)
 
             fprintf('*** Subject %02d: Data is empty, skip subject ***\n', iSub);
             continue
-         end
+        end
 
         %% Keep only the selected channels
         indx_chan = [];
         indx_chan = ismember(rawData(iSub).chan, eegChanVec);
         rawData(iSub).chan = rawData(iSub).chan(indx_chan);
-        rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
-        if size(rawData(iSub).EEGts,1) <=72
+        %rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
+        if size(rawData(iSub).EEGts,1) <=80
             rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
         else
             error('Elena: isnpect dimentions')
@@ -147,136 +150,101 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
         % --------------------------------------------------------------- %
         %% Create Fieldtrip structure:
         % Check if data exists (or subject excluded), if not, then skip:
-       
 
-        
-            fprintf('*** Subject %02d: Cast into Fieldtrip structure ***\n', iSub);
-            data1                   = []; % initialize
-            data1.dimord            = 'chan_time'; % dimension order for each trial
-            timeVecFound            = rawData(iSub).time; % extract time bin labels
-            if (timeVecFound(end) - timeVecFound(1)) < 10; timeVecFound = timeVecFound * 1000; end % convert from sec to ms
-            data1.time              = repmat({timeVecFound}, 1, nTrialFound); % time bin labels
-            data1.label             = rawData(iSub).chan; % channel labels
-            data1.trial             = squeeze(mat2cell(rawData(iSub).EEGts, sum(indx_chan), nTimeFound, ones(1, nTrialFound)))'; % data
-            if isfield(rawData(iSub).epoch, 'value')
-                data1.trialinfo         = rawData(iSub).epoch.value'; % trigger values per trial (as single row, thus transposed)
+        fprintf('*** Subject %02d: Cast into Fieldtrip structure ***\n', iSub);
+        data1                   = []; % initialize
+        data1.dimord            = 'chan_time'; % dimension order for each trial
+        timeVecFound            = rawData(iSub).time; % extract time bin labels
+        if (timeVecFound(end) - timeVecFound(1)) < 10
+            timeVecFound = timeVecFound * 1000
+            rawData(iSub).time = rawData(iSub).time*1000;
+        end % convert from sec to ms
+        data1.time              = repmat({timeVecFound}, 1, nTrialFound); % time bin labels
+        data1.label             = rawData(iSub).chan; % channel labels
+        data1.trial             = squeeze(mat2cell(rawData(iSub).EEGts, sum(indx_chan), nTimeFound, ones(1, nTrialFound)))'; % data
+        %             if isfield(rawData(iSub).epoch, 'value')
+        data1.trialinfo         = rawData(iSub).epoch; % trigger values per trial (as single row, thus transposed)
+        %             end
+        % --------------------------------------------------------------- %
+        %% Re-sample to consistent time bins:
+
+        % Limit new time vector to boundaries of data available:
+        fprintf('*** Subject %02d: Resample to new time bins ***\n', iSub);
+
+        timeVecNew     = timeVec_standard(timeVec_standard >= rawData(iSub).time(1) & timeVec_standard <= rawData(iSub).time(end));
+
+        cfg                     = [];
+        cfg.time                = repmat({timeVecNew}, 1, nTrialFound); % timeVecNew;
+        cfg.demean              = 'no';
+        cfg.detrend             = 'no';
+        data3                   = ft_resampledata(cfg, data1);
+        % data3.time{1}
+
+        % --------------------------------------------------------------- %
+        %% Epoch data to time window of interest:
+
+        fprintf('*** Subject %02d: Select data in time window of %03d - +%03d ms***\n', ...
+            iSub, timeWindow(1), timeWindow(end));
+        cfg                     = [];
+        cfg.latency             = timeWindow;
+        cfg.avgovertime         = 'no';
+        cfg.nanmean             = 'yes';
+        data4 = []
+        data4                   = ft_selectdata(cfg, data3);
+
+        %% add NaN for missing data to keep the same structure across teams
+
+        if rawData(iSub).time(1)>-199 || rawData(iSub).time(end)<599
+            indx_missing = ismember(timeVec_standard, data4.time{1});
+            count = find(indx_missing);
+            nan_start = nan(1,count(1)-1);
+            nan_end = nan(1,length(timeVec_standard) - count(end));
+
+            new_time = [nan_start, data4.time{1}, nan_end];
+
+            for p = 1:length(data4.trial)
+                data4.time(p) = {timeVec_standard};
+                nan_start = nan(length(data4.label),count(1)-1);
+                nan_end = nan(length(data4.label),length(timeVec_standard) - count(end));
+                data4.trial(p) = {[nan_start, data4.trial{p}, nan_end]};
             end
-            % --------------------------------------------------------------- %
-            %% Re-sample to consistent time bins:
+        end
 
-            % Limit new time vector to boundaries of data available:
-            fprintf('*** Subject %02d: Resample to new time bins ***\n', iSub);
+        %% Missing channels and channel order
+        [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label);
 
-            timeVecNew     = timeVec_standard(timeVec_standard >= rawData(iSub).time(1) & timeVec_standard <= rawData(iSub).time(end));
+        chan_full = cell(1,length(eegChanVec));
+        chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)));
+        for p = 1:length(data4.trial)
+            test = data4;
+            test.trial{p} = test.trial{p}(pl_mchan(find(pl_mchan)),:);%re-order time series data based on a standard channel order
+            trial_templ = nan(length(eegChanVec),length(data4.time{p}));
+            trial_templ(indx_mchan,:) = test.trial{p};
+            data4.trial(p) = {trial_templ};
+        end
+        data4.label = eegChanVec;
+        % Store time info for a report txt file
+        time =data4.time{1,1};
+        % --------------------------------------------------------------- %
+        %% Compute summary statistic (mean, variance, dof) across trials:
 
-            cfg                     = [];
-            cfg.time                = repmat({timeVecNew}, 1, nTrialFound); % timeVecNew;
-            cfg.demean              = 'no';
-            cfg.detrend             = 'no';
-            data3                   = ft_resampledata(cfg, data1);
-            % data3.time{1}
+        fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
+        cfg                     = [];
+        data5                   = ft_timelockanalysis(cfg, data4);
+        % --------------------------------------------------------------- %
+        %% Save chan x time matrix in teams x subjects cell:
 
-            % --------------------------------------------------------------- %
-            %% Epoch data to time window of interest:
+        subID = str2double(extract(rawData(iSub).subID,digitsPattern));%str2double(cell2mat(extractBetween(rawData(iSub).subID, 5, 6)));
+        fprintf('*** Subject %02d: Save under subject ID %02d ***\n', iSub, subID);
 
-            fprintf('*** Subject %02d: Select data in time window of %03d - +%03d ms***\n', ...
-                iSub, timeWindow(1), timeWindow(end));
-            cfg                     = [];
-            cfg.latency             = timeWindow;
-            cfg.avgovertime         = 'no';
-            cfg.nanmean             = 'yes';
-            data4 = []
-            data4                   = ft_selectdata(cfg, data3);
-            data4.event = rawData(iSub).epoch;
+        % Save in cell:
+        alldatstand{1,subID} = data4;
+        alldatstand{2,subID} = ['Subj-',num2str(subID)];
 
-            %% add NaN for missing data to keep the same structure across teams
+        alldatavg{1,subID} = data5;
+        alldatavg{2,subID} = ['Subj-',num2str(subID)];
 
-            if rawData(iSub).time(1)>-199 || rawData(iSub).time(end)<599
-                indx_missing = ismember(timeVec_standard, data4.time{1});
-                count = find(indx_missing);
-                nan_start = nan(1,count(1)-1);
-                nan_end = nan(1,length(timeVec_standard) - count(end));
 
-                new_time = [nan_start, data4.time{1}, nan_end];
-
-                for p = 1:length(data4.trial)
-                    data4.time(p) = {timeVec_standard};
-                    nan_start = nan(length(data4.label),count(1)-1);
-                    nan_end = nan(length(data4.label),length(timeVec_standard) - count(end));
-                    data4.trial(p) = {[nan_start, data4.trial{p}, nan_end]};
-                end
-            end
-            % Missing channels
-            if length(data4.label) ~= length(eegChanVec)
-                [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label);
-               
-                chan_full = cell(1,length(eegChanVec));
-                chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)));
-                for p = 1:length(data4.trial)
-                    test = data4;
-                    test.trial{p}=test.trial{p}(pl_mchan(find(pl_mchan)),:);%re-order time series data based on a standard channel order
-                    trial_templ = nan(length(eegChanVec),length(data4.time{p}));
-                    trial_templ(indx_mchan,:) = test.trial{p};
-                    data4.trial(p) = {trial_templ};
-                end
-                 data4.label = eegChanVec;
-
-            end
-
-            % --------------------------------------------------------------- %
-            %             %% Compute summary statistic (mean, variance, dof) across trials:
-            %
-            %             fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
-            %             cfg                     = [];
-            %             data5                   = ft_timelockanalysis(cfg, data4);
-            %
-            % --------------------------------------------------------------- %
-            %% Insert NaN for empty time bins:
-            % https://www.fieldtriptoolbox.org/faq/how_can_i_interpret_the_different_types_of_padding_that_i_find_when_dealing_with_artifacts/
-            %
-            %             fprintf('*** Subject %02d: Insert NaN for non-existing time bins ***\n', iSub);
-            %             timeIdx                 = find(ismember(timeVecDes, data4.time{1})); % selection of desired time bins present
-            %             data6                   = data5; % copy over
-            %             data6.avg               = nan(nChanFound, nTimeDes); % initialize
-            %             data6.var               = nan(nChanFound, nTimeDes); % initialize
-            %             data6.dof               = nan(nChanFound, nTimeDes); % initialize
-            %             data6.avg(:, timeIdx)   = data5.avg; % copy over for available time bins
-            %             data6.var(:, timeIdx)   = data5.var; % copy over for available time bins
-            %             data6.dof(:, timeIdx)   = data5.dof; % copy over for available time bins
-            %
-            % --------------------------------------------------------------- %
-            %% Insert NaN for missing channels, sort channels:
-
-            %             fprintf('*** Subject %02d: Insert NaN for non-existing channels ***\n', iSub);
-            %
-            %             % Loop over all theoretically existing channels, fill if existing:
-            %             data7                   = data6; % copy over
-            %             data7.label             = eegChanVec; % fill in names of all EEG channels
-            %             data7.avg               = nan(nChan, nTimeDes); % initialize
-            %             data7.var               = nan(nChan, nTimeDes); % initialize
-            %             data7.dof               = nan(nChan, nTimeDes); % initialize
-            %
-            % Loop over all possibly available channels (alphabetically):
-            %             for iChan = 1:nChan % iChan = 1;
-            %                 if ismember(data7.label{iChan}, data6.label) % check if channel exists
-            %                     chanIdx     = find(strcmp(data7.label{iChan}, data6.label)); % index of this channel in previous data
-            %                     data7.avg(iChan, :) = data6.avg(chanIdx, :); % copy over
-            %                     data7.var(iChan, :) = data6.var(chanIdx, :); % copy over
-            %                     data7.dof(iChan, :) = data6.dof(chanIdx, :); % copy over
-            %                 end
-            %             end
-            %
-            % --------------------------------------------------------------- %
-            %% Save chan x time matrix in teams x subjects cell:
-
-            subID = str2double(extract(rawData(iSub).subID,digitsPattern));%str2double(cell2mat(extractBetween(rawData(iSub).subID, 5, 6)));
-            fprintf('*** Subject %02d: Save under subject ID %02d ***\n', iSub, subID);
-
-            % Save in cell:
-            alldatstand{1,subID} = data4;
-            alldatstand{2,subID} = ['Subj-',num2str(subID)];
-
-   
         fprintf('*** Subject %02d: FINISHED ***\n', iSub);
         clear data1 data3 data5 data6 data7 timeIdx cfg timeVecNew timeVecFound  nTimeFound nTrialFound
 
@@ -329,9 +297,8 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
                 data1.time              = repmat({timeVecFound}, 1, nTrialFound); % time bin labels
                 data1.label             = rawData(iSub).chan; % channel labels
                 data1.trial             = squeeze(mat2cell(rawData(iSub).EEGts, sum(indx_chan), nTimeFound, ones(1, nTrialFound)))'; % data
-                if isfield(rawData(iSub).epoch, 'value')
-                    data1.trialinfo         = rawData(iSub).epoch.value'; % trigger values per trial (as single row, thus transposed)
-                end
+
+                data1.trialinfo         = rawData(iSub).epoch; % trigger values per trial (as single row, thus transposed)                end
                 % --------------------------------------------------------------- %
                 %% Re-sample to consistent time bins:
 
@@ -357,41 +324,46 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
                 cfg.nanmean             = 'yes';
                 data4 = []
                 data4                   = ft_selectdata(cfg, data3);
-                data4.event = rawData(iSub).epoch;
                 %------------------------------------------------------------- %
-                  %% add NaN for missing data to keep the same structure across teams
+                %% add NaN for missing data to keep the same structure across teams
 
-            if rawData(iSub).time(1)>-199 || rawData(iSub).time(end)<599
-                indx_missing = ismember(timeVec_standard, data4.time{1})
-                count = find(indx_missing)
-                nan_start = nan(1,count(1)-1)
-                nan_end = nan(1,length(timeVec_standard) - count(end))
+                if rawData(iSub).time(1)>-199 || rawData(iSub).time(end)<599
+                    indx_missing = ismember(timeVec_standard, data4.time{1})
+                    count = find(indx_missing)
+                    nan_start = nan(1,count(1)-1)
+                    nan_end = nan(1,length(timeVec_standard) - count(end))
 
-                new_time = [nan_start, data4.time{1}, nan_end]
+                    new_time = [nan_start, data4.time{1}, nan_end]
 
-                for p = 1:length(data4.trial)
-                    data4.time(p) = {timeVec_standard};
-                    nan_start = nan(length(data4.label),count(1)-1);
-                    nan_end = nan(length(data4.label),length(timeVec_standard) - count(end));
-                    data4.trial(p) = {[nan_start, data4.trial{p}, nan_end]}
+                    for p = 1:length(data4.trial)
+                        data4.time(p) = {timeVec_standard};
+                        nan_start = nan(length(data4.label),count(1)-1);
+                        nan_end = nan(length(data4.label),length(timeVec_standard) - count(end));
+                        data4.trial(p) = {[nan_start, data4.trial{p}, nan_end]}
+                    end
                 end
-            end
-            % Missing channels
-            if length(data4.label) ~= length(eegChanVec)
-                [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label)
-               
-                chan_full = cell(1,length(eegChanVec))
-                chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)))
-                for p = 1:length(data4.trial)
-                    test = data4
-                    test.trial{p}=test.trial{p}(pl_mchan(find(pl_mchan)),:)%re-order time series data based on a standard channel order
-                    trial_templ = nan(length(eegChanVec),length(data4.time{p}));
-                    trial_templ(indx_mchan,:) = test.trial{p}
-                    data4.trial(p) = {trial_templ}
-                end
-                 data4.label = eegChanVec;
+                % Missing channels
+                if length(data4.label) ~= length(eegChanVec)
+                    [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label)
 
-            end
+                    chan_full = cell(1,length(eegChanVec))
+                    chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)))
+                    for p = 1:length(data4.trial)
+                        test = data4
+                        test.trial{p}=test.trial{p}(pl_mchan(find(pl_mchan)),:)%re-order time series data based on a standard channel order
+                        trial_templ = nan(length(eegChanVec),length(data4.time{p}));
+                        trial_templ(indx_mchan,:) = test.trial{p}
+                        data4.trial(p) = {trial_templ}
+                    end
+                    data4.label = eegChanVec;
+
+                end
+                % --------------------------------------------------------------- %
+                %% Compute summary statistic (mean, variance, dof) across trials:
+
+                fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
+                cfg                     = [];
+                data5                   = ft_timelockanalysis(cfg, data4);
                 %% Save chan x time matrix in teams x subjects cell:
 
                 subID = str2double(extract(rawData(iSub).subID,digitsPattern));%str2double(cell2mat(extractBetween(rawData(iSub).subID, 5, 6)));
@@ -400,6 +372,9 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
                 % Save in cell:
                 alldatstand{1,subID} = data4;
                 alldatstand{2,subID} = ['Subj-',num2str(subID)];
+
+                alldatavg{1,subID} = data5;
+                alldatavg{2,subID} = ['Subj-',num2str(subID)];
 
             end % if data is empty
             fprintf('*** Subject %02d: FINISHED ***\n', iSub);
@@ -411,12 +386,13 @@ for iTeam = 16:nTeam % 15 problemw it resampling (interpolation problem) - perha
     end
 
     %save
-    save([dirs.saveDir,'standart_',extractBefore(teamList{iTeam},'.mat')], 'alldatstand','-v7.3')
+    save([dirs.saveDirstand,'standart_',extractBefore(teamList{iTeam},'.mat')], 'alldatstand','-v7.3')
+    save([dirs.saveDiravg,'sbjavg_',extractBefore(teamList{iTeam},'.mat')], 'alldatavg','-v7.3')
 
     %create a report
-    fileID = fopen([dirs.saveDir, 'standartization_report.txt'],'a+');
+    fileID = fopen([dirs.saveDirstand, 'standartization_report.txt'],'a+');
     fprintf(fileID,'\n %s',datestr(datetime), ...
-        ['Processed team: ', teamList{iTeam}], ['Time window: ', num2str(data4.time{1,1}(1)),' to ', num2str(data4.time{1,1}(end))],...
+        ['Processed team: ', teamList{iTeam}], ['Time window: ', num2str(time(1)),' to ', num2str(time(end))],...
         ['Number of channels: ', num2str(sum(indx_chan))]);
     fclose(fileID);
 
