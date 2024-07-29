@@ -34,6 +34,17 @@ grps = d(~(strcmp('.',d)|strcmp('..',d)));     % Remove dots
 % List of individual datasets
 subjects = {'sub-001','sub-002','sub-003', 'sub-004'};   % use these for now
 
+%% Run settings
+% standard window
+winStart    = -0.2;      % Seconds
+winEnd      = 0.6;       % Seconds
+
+% Standard sample frequency
+fixFS       = 256;       % Hz
+
+% Init.
+tAx = winStart:(1/fixFS):winEnd;            % New time axis for resample
+
 %% Collect data from all groups.
 % Average withing subject within group, then average all subjects within
 % group (grand average). Collect grand averages for comparison across
@@ -43,7 +54,7 @@ subjects = {'sub-001','sub-002','sub-003', 'sub-004'};   % use these for now
 allgrpdat = cell(size(grps));
 allSemDat = cell(size(grps));
 for gg = 1:length(grps)
-    %     gg=1;
+    gg=1;
     grp = grps{gg};
 
     % loop over subjects
@@ -64,16 +75,94 @@ for gg = 1:length(grps)
         end
 
         % Load data
-
         subjdat = load(fullfile(datapath, grp, infile{:}));
 
-        % Average all trials (not careing about conditions for now!)
+        % MOVE Average all trials (not careing about conditions for now!)
         subjdat.avgdat = double(mean(subjdat.data, 3));      % dim 3 = trials
         label = cell(length(subjdat.chs_name),1);
         for x = 1:length(subjdat.chs_name)
             label{x} = strtrim(subjdat.chs_name(x,:));
         end
 
+        %% Single trl data
+        fs = 1./diff(subjdat.time);
+        fs = fs(1);
+
+        trltmp = [];
+        for tt = 1:size(subjdat.data, 3)
+            trltmp.trial{tt} = subjdat.data(:,:,tt);
+            trltmp.time{tt} = subjdat.time;
+        end
+        trltmp.trialinfo = subjdat.events;
+        trltmp.label     = label;
+        trltmp.dimord    = 'chan_time';
+        trltmp.fsample   = fs;
+
+        %% crop        
+        % Get the actual max/min time in data for later
+        maxtim = max(trltmp.time{1});
+        mintim = min(trltmp.time{1});
+
+        cfg = [];
+        cfg.latency = [winStart, winEnd];
+        tst = ft_selectdata(cfg, tst);
+
+        cfg = [];
+        cfg.layout      = 'elec1010.lay';
+        ft_multiplotER(cfg, tst)
+
+        %% resample
+        tAxReal = tAx(tAx >= mintim & tAx <= maxtim);   % Only interpolate on the section that has data. Otherwise it gives nonsense.
+
+        cfg = [];
+%         cfg.resamplefs  = fixFS;
+        cfg.method      = 'pchip';
+        cfg.detrend     = 'no';
+        cfg.demean      = 'no';
+        cfg.time        = repmat({tAxReal}, length(trltmp.trial), 1);
+        trltmp_sam = ft_resampledata(cfg, trltmp);
+
+        %% Add NaN for missing time points (ver 2)
+
+        if maxtim < winEnd || mintim > winStart
+            for tt = 1:length(trltmp_sam.trial)
+                if maxtim < winEnd
+                    afterPts = length(tAx(tAx > maxtim));
+                    afterAdd = nan(size(trltmp_sam.trial{tt},1), afterPts);
+                else 
+                    afterAdd = [];
+                end
+    
+                if mintim > winStart
+                    beforePts = length(tAx(tAx < mintim));
+                    beforeAdd = nan(size(trltmp_sam.trial{tt},1), beforePts);
+                else
+                    beforeAdd = [];
+                end
+                trltmp_sam.time{tt} = tAx;
+                trltmp_sam.trial{tt} = [beforeAdd, trltmp_sam.trial{tt}, afterAdd];
+            end
+        end
+
+%         cfg = [];
+%         cfg.layout      = 'elec1010.lay';
+%         ft_multiplotER(cfg, trltmp_sam)
+
+        %% rereference and common baseline
+        ft_warning off                                  % To avoid anoying NaN message
+        cfg = [];
+        cfg.reref       = 'yes';
+        cfg.refchannel  = 'all';
+        cfg.demean      = 'yes';
+        cfg.baselinewindow = [-0.2, 0];
+        trltmp_ref = ft_preprocessing(cfg, trltmp_sam); ft_warning on;
+
+%         cfg = [];
+%         cfg.layout      = 'elec1010.lay';
+%         ft_multiplotER(cfg, trltmp_ref, trltmp_sam)
+
+
+        %% Averaged data
         fttmp = [];
         fttmp.avg       = subjdat.avgdat;
         fttmp.time      = subjdat.time;
@@ -119,7 +208,7 @@ for gg = 1:length(grps)
 end
 
 %% ########################################################################
-% End of data collection seteps. Below here are some tests doing plots and
+% End of data collection steps. Below here are some tests doing plots and
 % other on the collected data structure. It might be a good idea to save
 % the data structure instead and do these steps in sperate scripts.
 
