@@ -208,7 +208,7 @@ for gg = 1:length(grps)
 end
 
 %% ########################################################################
-% End of data collection seteps. Below here are some tests doing plots and
+% End of data collection steps. Below here are some tests doing plots and
 % other on the collected data structure. It might be a good idea to save
 % the data structure instead and do these steps in sperate scripts.
 
