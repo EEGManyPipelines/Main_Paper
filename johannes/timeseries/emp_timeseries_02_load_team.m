@@ -156,7 +156,7 @@ for iTeam = 1:nTeam % iTeam = 3;
     
             fprintf('*** Subject %02d: Select data in time window of %03d - +%03d ms***\n', ...
                 iSub, timeWindow(1), timeWindow(end));
-            
+
             cfg                     = [];
             cfg.latency             = timeWindow;
             cfg.avgovertime         = 'no';
