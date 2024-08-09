@@ -3,6 +3,8 @@
 # Folders
 *nobackup*
 Time-series/erplot/plots/
+data/
 
 # Files extensions
 *.asv*
+*.png*

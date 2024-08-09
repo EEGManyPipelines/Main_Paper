@@ -31,8 +31,8 @@ ft_default.showlogo = 'no';
 %% Set input settings:
 
 % Desired time settings:
-FS              = 256; % sampling rate in Hz
-timeWindow      = [-200 500]; % consistent trial epoching (in ms)
+FS              = 256;          % sampling rate in Hz
+timeWindow      = [-200 500];   % consistent trial epoching (in ms)
 
 timeVecDes      = timeWindow(1):((1/FS)*1000):timeWindow(end); % desired time bins after resampling (in ms)
 nTimeDes        = length(timeVecDes); % number desired time bins
@@ -156,6 +156,7 @@ for iTeam = 1:nTeam % iTeam = 3;
     
             fprintf('*** Subject %02d: Select data in time window of %03d - +%03d ms***\n', ...
                 iSub, timeWindow(1), timeWindow(end));
+
             cfg                     = [];
             cfg.latency             = timeWindow;
             cfg.avgovertime         = 'no';
