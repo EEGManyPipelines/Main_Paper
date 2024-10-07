@@ -3,8 +3,8 @@
 library(R.matlab)
 library(lme4)
 
-dat <- readMat('C:\\Users\\ncb623\\EMP\\data\\Standardized\\alldatmat.mat')
-dat <- dat$alldatmat
+tmp <- readMat('C:\\Users\\ncb623\\EMP\\data\\alldatmat.mat')
+dat <- tmp$alldatmat
 
 n.grp <- dim(dat)[1]
 n.subj <-  dim(dat)[2]
@@ -12,11 +12,6 @@ n.elec <- dim(dat)[3]
 n.t <- dim(dat)[4]
 
 # Init.
-t.thet.grp <- rep(0, n.t)
-t.thet.subj <- rep(0, n.t)
-t.thet.res  <- rep(0, n.t)
-
-
 dat.thet.grp <- matrix(0, n.elec, n.t)
 dat.thet.subj <- matrix(0, n.elec, n.t)
 dat.thet.res  <- matrix(0, n.elec, n.t)
@@ -35,13 +30,14 @@ for (tt in 1:n.t){
     tmp.mod <- lmer(y ~ 1 + (1|subj) + (1|grp), data=idx.dat, REML=FALSE)
     smry <- as.data.frame(VarCorr(tmp.mod, which="theta_"))
     
-    dat.thet.subj[jj,tt] <- smry$sdcor[1]
-    dat.thet.grp[jj,tt] <- smry$sdcor[2]
-    dat.thet.res[jj,tt] <- smry$sdcor[3]
+    dat.thet.grp[jj,tt]  <- smry[smry$grp=="grp",]$sdcor
+    dat.thet.subj[jj,tt] <- smry[smry$grp=="subj",]$sdcor
+    dat.thet.res[jj,tt]  <- smry[smry$grp=="Residual",]$sdcor
   }
 }
+cat('Done')
 
-writeMat('C:\\Users\\ncb623\\EMP\\data\\Standardized\\thetadat.mat', 
+writeMat('C:\\Users\\ncb623\\EMP\\data\\thetadat.mat', 
          subj=dat.thet.subj,  
          grp=dat.thet.grp, 
          resid=dat.thet.res)
