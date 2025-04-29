@@ -21,3 +21,4 @@ quest_interest_2 = [10, 12, 14, 46,75,80,111,151,152] % if averaged over channel
 new_table = [new_table,AQ(:,quest_interest_2)]
 
 writetable(new_table, "all_var_AQ_h1.xlsx")
+writetable(table(AQ.teamID),'ID_h1_process.csv','Delimiter', ',')

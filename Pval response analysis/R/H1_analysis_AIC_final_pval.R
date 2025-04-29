@@ -7,13 +7,11 @@ library(car)
 library(ggplot2)
 
 #Loading the data
-#dataPath <- "C:\\Users\\ecesnait\\Downloads\\all_var_AQ_h1_(version_3).xlsx"
-#data <- read_excel(dataPath, col_names = TRUE)
-#head(data)
-
 # use h1_data frame from another script for completeness
-h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
+order_steps <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/Script_Order_Sorted.csv", sep = ',')
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv", sep = ';')
 h1_data <- as.data.frame(h1_data)
+table(h1_data$ds_fs)
 
 ## --------------------
 # Correct values
@@ -24,65 +22,97 @@ h1_data$software[h1_data$software== 'eeglab_erplab'] <- 'eeglab'
 h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
 
 #Fill in empty responses
-# High-pass filter type & direction
-h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
-
-h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
-
-#filter type
-table(h1_data$ans_hf_type)
-h1_data$ans_hf_type[h1_data$ans_hf_type == 'IIR'] <- 'hf_iir'
 
 # Segment exclusion criteria
 h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
 
-#Time window start, end & length
-#exchange missing values to the mean of the column
-h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
-
-h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
-h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
-# ICA algorythm
-h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
-
-#Baseline start and stop
-h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
-h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
-
-h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
-h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean((h1_data$ans_baseline_start), na.rm = T) 
-h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T)
-
-# Change baseline window length 0 to the mean of the column because 0 is dragging the effect
-h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_window_length[h1_data$bs_window_length != 0], na.rm = T) 
-
-
-#remove binary response and p-values
-data <- h1_data[,c(-1,-27)]
-data$ans_ica_algo[data$ans_ica_algo=='runica'] <- 'infomax'
+# correct high-pas filfter cutoff values
+data_corrected_hp <- gsub(",", ".", h1_data$hf_cutoff)
+h1_data$hf_cutoff <- as.numeric(data_corrected_hp)
 
 ## --------------------
 # outliers removal
 ## --------------------
 # 
-hf_out <- boxplot(data$hf_cutoff)$out
-data$hf_cutoff[which(data$hf_cutoff == hf_out)] <- mean((data$hf_cutoff), na.rm = T) # removed one team that had 3 for a  HP filter
+hf_out <- boxplot(h1_data$hf_cutoff)$out
+h1_data$hf_cutoff[which(h1_data$hf_cutoff == hf_out)] <- NA # removed one team that had 3 for a  HP filter
+
+h1_data$hf_cutoff[is.na(h1_data$hf_cutoff)] <- mean(h1_data$hf_cutoff, na.rm = T) 
+
+#Time window start, end & length
+#exchange missing values to the mean of the column
+
+data_corrected <- gsub(",", ".", h1_data$ans_time_w_end_h1)
+h1_data$ans_time_w_end_h1 <- as.numeric(data_corrected)
+
+data_corrected_tw_start <- gsub(",", ".", h1_data$ans_time_w_start_h1)
+h1_data$ans_time_w_start_h1 <- as.numeric(data_corrected_tw_start)
+
+h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
+h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
+h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
+
+# ICA algorythm
+h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
+h1_data$ans_ica_algo[h1_data$ans_ica_algo=='runica'] <- 'infomax'
+
+#Baseline start and stop
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
+h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
+
+data_corrected_bs_start <- gsub(",", ".", h1_data$ans_baseline_start)
+h1_data$ans_baseline_start <- as.numeric(data_corrected_bs_start)
+h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <- mean(h1_data$ans_baseline_start, na.rm = T) 
+h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean(h1_data$ans_baseline_stop, na.rm = T)
+
+h1_data$bs_window_length[is.na(h1_data$bs_window_length)] <- mean(h1_data$bs_window_length, na.rm = T) 
+
+#number of channels from char to num
+data_corrected_chan<- gsub(",", ".", h1_data$nr_chan_h1)
+h1_data$nr_chan_h1 <- as.numeric(data_corrected_chan)
+
+
+#remove binary response and p-values
+data <- h1_data[,c(-1,-27, -28)]
+
 
 ## --------------------
 # from p-val to z-val
 ## --------------------
 # 
-hist(qnorm(data$pval))
-data$pval <- qnorm(data$pval)#qnorm(0.975,mean=0,sd=1)
+# median of p-val
+data_corrected_pvalM <- gsub(",", ".", data$pval_med)
+pval <- as.numeric(data_corrected_pvalM)
+
+hist(qnorm(pval))
+data$pval_med <- qnorm(pval)#qnorm(0.975,mean=0,sd=1)
+
+
+## add order of steps
+#re-order
+ID <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_IDs_168.csv", sep = ',')
+matched_ID <- match(order_steps$ID , ID$Var1)
+which(is.na(matched_ID))
+order_steps$ID[112] <- "TheCodeMechanics"
+order_steps$ID[166] <- "Jack Lab"
+
+matched_ID_v2 <- match(ID$Var1, order_steps$ID )
+order_steps_matched <- order_steps[matched_ID_v2,]
+
+order_steps_matched$ID == ID$Var1
+summary(order_steps_matched[,20:23]) 
+colSums(order_steps_matched[,20:23]*1)
+
+data_v2 <- as.data.frame(c(data, order_steps_matched[,20:23]*1))
 
 ## --------------------
 # look if there are any NaN values
 ## --------------------
 # 
-empty_row <- which(is.na(data),arr.ind=TRUE) # 
+empty_row <- which(is.na(data_v2),arr.ind=TRUE) # 
 indx_row <- empty_row[,1]
 # Caution: remove them from the dataset
-data <- data[-indx_row,]
+data_v2 <- data_v2[-indx_row,]
 
 
 ## --------------------
@@ -94,80 +124,21 @@ continuous <- c(3, 7, 8, 10, 16:18, 23:25)
 
 #normalizing data
 for (i in 1:length(continuous)) {
-  contin_data_col <- data[,continuous[i]]
-  data[,continuous[i]] <- scale(contin_data_col)
+  contin_data_col <- data_v2[,continuous[i]]
+  data_v2[,continuous[i]] <- as.numeric(scale(contin_data_col))
   #hist(scale(contin_data_col))
 }
-
-
-# --------------------
-#combine multiple comparison and statistical test columns (avoid the cluster problem)
-# --------------------
-# #
-# table(data$mc_method_h1)
-# # add correction method next to the stat model
-# for (i in 1:nrow(data)) {
-#   if (data$mc_method_h1[i] == 'bonferroni') {
-#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bonf')
-#   } else if (data$mc_method_h1[i] == 'bhfdr') {
-#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_bhfdr')
-#   } else if (data$mc_method_h1[i] =='holm-bonferroni'){
-#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_hbonf')
-#   }else if (data$mc_method_h1[i] =='rft'){
-#     data$stat_method_h1[i] <- paste0(data$stat_method_h1[i],'_rft')
-#   }
-# }
-# 
-# # Now i can remove the multiple comparisons questions from the table
-# data <- data[,c(-12)]
-
-## ------------------------------------------------------------------------------------
-
-#Converting the categorical variables in the data to factors
-data$software <- as.factor(data$software)
-#data$hf_cutoff <- as.factor(data$hf_cutoff) # not a categorical variable?
-data$ans_hf_type <- as.factor(data$ans_hf_type)
-data$ans_hf_direction <- as.factor(data$ans_hf_direction)
-data$reref <- as.factor(data$reref)
-data$topo_region_h1 <- as.factor(data$topo_region_h1)
-data$ans_exclusion_criteria_seg <- as.factor(data$ans_exclusion_criteria_seg)
-data$mc_method_h1 <- as.factor(data$mc_method_h1)
-data$stat_method_h1 <- as.factor(data$stat_method_h1)
-data$ans_spa_roi_avg_h1 <- as.factor(data$ans_spa_roi_avg_h1)
-data$ans_mt_h1 <- as.factor(data$ans_mt_h1)
-data$ans_temp_roi_avg_h1 <- as.factor(data$ans_temp_roi_avg_h1)
-data$ans_ica_algo <- as.factor(data$ans_ica_algo)
-data$ans_bad_comp_sel_visual <- as.factor(data$ans_bad_comp_sel_visual)
-data$ans_bad_comp_sel_plugin <- as.factor(data$ans_bad_comp_sel_plugin)
-
- #---------------------------------------------------------------------------------------------------------------------------
-# #remove dummy variables that have too few observations
-# #install.packages('fastDummies')
-# library(fastDummies)
-# dummy_data <- dummy_cols(data, remove_selected_columns = TRUE)
-# #remove columns with few observations
-# n=1
-# columns_exclude <- c()
-# for (i in 12:length(dummy_data)) {
-#   if (sum(dummy_data[,i]) < 6) {
-#     columns_exclude[n] = i
-#     n = n+1
-#   }
-# }
-# names <- colnames(dummy_data)
-# names[columns_exclude]
-# dummy_data <- dummy_data[,-columns_exclude]
 
 #---------------------------------------------------------------------------------------------------------------------------
 
 # exclude variables that have high collinearity >0.6
 collinearity_indx <- match(c("topo_region_h1","ans_software_host","mc_method_h1",
-                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start","ans_hf_direction","software"), colnames(data)) # 37
+                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start","ans_baseline_stop","ans_hf_direction","software"), colnames(data)) # 37
 
-data_reduced <- data[,-collinearity_indx] 
+data_reduced <- data_v2[,-collinearity_indx] 
 #inclusing categorical data
 #install.packages('ggcorrplot')
-library(ggcorrplot)
+#library(ggcorrplot)
 library(tidyr)
 #find the ones above 0.6
 all_cor <- model.matrix(~0+., data=data_reduced) %>% 
@@ -176,6 +147,17 @@ which(abs(all_cor)>0.6 & abs(all_cor)!=1, arr.ind=TRUE) #
 
 cor(data_reduced$hf_cutoff, data_reduced$ds_fs)
 
+# Effect of software
+#which(data$software=='besa')
+#which(data$software=='R')
+#data <- data[-c(52,99),]
+
+#summary(lm(pval_med~software, data = data))
+
+#plot_software <- data.frame(data$software,data$pval)
+#plot_software$data.software<-factor(plot_software$data.software, unique(plot_software$data.software))
+
+
 # Visualizing the correlation matrix
 image(all_cor, main = "Correlation Matrix", col = colorRampPalette(c("blue", "white", "red"))(20))
 
@@ -183,7 +165,7 @@ image(all_cor, main = "Correlation Matrix", col = colorRampPalette(c("blue", "wh
 
 #Approach 1. Using the step function.
 #Checking different models using the step function. 
-fullmodel<- lm(pval~ . , data = data_reduced)
+fullmodel<- lm(pval_med ~ . , data = data_reduced)
 summary(fullmodel)
 car::vif(fullmodel)
 
@@ -198,22 +180,22 @@ all_aic_values = data.frame(stepwise_model$anova$Step,stepwise_model$anova$AIC)
 #The factors that had the most effect on the model are: ans_mt_h1,bs_window_start
 #So I decided to use those along with their interaction effect
 
-winmodel <- lm(pval~ bs_window_length+ans_mt_h1+bs_window_length*ans_mt_h1, data=data_reduced)
+winmodel <- lm(pval_med ~ nr_chan_h1*bs_window_length*ans_mt_h1, data=data_reduced)
 
-winmodel2 <- lm(pval~nr_chan_h1 + ans_mt_h1 + bs_window_length + nr_chan_h1*ans_mt_h1+ bs_window_length*ans_mt_h1,data=data_reduced)
+#winmodel2 <- lm(pval~nr_chan_h1 + ans_mt_h1 + bs_window_length + nr_chan_h1*ans_mt_h1+ bs_window_length*ans_mt_h1,data=data_reduced)
 
-summary(winmodel2)
+summary(winmodel)
 summ(winmodel, confint = TRUE, digits = 4) # nicer vizualisation
 
 #add fitted regression line to scatterplot
-fit <-  lm(pval ~ bs_window_length, data=data_reduced)
+fit <-  lm(pval_med ~ bs_window_length, data=data_reduced)
 #create scatterplot
-plot(pval ~ bs_window_length, data=data_reduced)
+plot(pval_med ~ bs_window_length, data=data_reduced)
 abline(fit)
 summ(fit,confint = TRUE, digits = 4)
 
 #Interaction
-ggplot(data=data_reduced, aes(x=bs_window_length, y=pval, group=ans_mt_h1))+
+ggplot(data=data_reduced, aes(x=bs_window_length, y=pval_med, group=ans_mt_h1))+
   geom_point(size=2, aes(color=ans_mt_h1))+
   geom_smooth(method= "lm")+
   ylab("qnorm(pval)")+
@@ -227,9 +209,37 @@ h1_data <- h1_data[!is.na(h1_data$ans_mt_h1),]
 table(h1_data$mc_method_h1)
 h1_data$mc_method_h1[!h1_data$mc_method_h1 == "permutation"] <- "not_prm"
 
+corrected_pvalM <- gsub(",", ".", h1_data$pval_med)
+pvalM <- as.numeric(corrected_pvalM)
+
+h1_data$pval_med <- pvalM#qnorm(0.975,mean=0,sd=1)
+
+
 tiff("C:/Users/ecesnait/Desktop/EEGManyPipelines/Figures/h1_interaction_baseline_mc.png", units="in", width=7, height=4.5, res=300)
 
-ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval), group=ans_mt_h1 ))+
+ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval_med), group=ans_mt_h1 ))+
+  geom_point(size=4, aes(color=ans_mt_h1), alpha = 0.5)+
+  geom_smooth(method= "lm", color = "grey")+
+  scale_color_manual(values = c("#00AFBB", "#E7B800"), labels = c("no", "yes"))+
+  theme_minimal()+ labs(x = "baseline length(ms)",y="qnorm(pval)",color = "cor.mult.cor.")+
+  ggtitle("Interaction effect")+ theme(text = element_text(size=30), )
+
+dev.off()
+
+
+tiff("C:/Users/ecesnait/Desktop/EEGManyPipelines/Figures/h1_nr_chan.png", units="in", width=7, height=4., res=300)
+
+ggplot(data=h1_data, aes(x=nr_chan_h1, y=qnorm(pval_med)))+
+  geom_point(size=4, alpha = 0.5, colour="chocolate")+
+  geom_smooth(method= "lm", color = "grey")+
+  theme_minimal()+ labs(x = "nr. channels",y="qnorm(pval)")+
+  theme(text = element_text(size=30), )
+
+dev.off()
+
+# with permutation vs not
+
+ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval_med), group=ans_mt_h1 ))+
   geom_point(size=4, aes(color=ans_mt_h1, shape = mc_method_h1), alpha = 0.5)+
   geom_smooth(method= "lm")+
   scale_shape_manual(values = c(16,17)) +
@@ -238,7 +248,6 @@ ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval), group=ans_mt_h1 ))+
   ylab("qnorm(pval)")+
   xlab("baseline length(ms)")+
   ggtitle("Interaction effect")+ theme(text = element_text(size=15))
-dev.off()
 
 # baseline window without the mt
 ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval) ))+

@@ -13,32 +13,45 @@ for t=1:length(data)
     all_data{t} = alldatavg;
     clear alldatavg
 end
+
 %% Remove outliers %%
+%re-create time
+FS              = 256; % sampling rate in Hz
+timeWindow      = [-200 600]; % consistent trial epoching (in ms)
+timeVec_standard1 = flip([ 0 : -1/FS*1000 : timeWindow(1) ]);
+timeVec_standard2        = [ 0 : 1/FS*1000 : timeWindow(2) ];
+timeVec_standard         = [ timeVec_standard1(1:end-1), timeVec_standard2 ];
+% figure, plot(timeVec_standard,all_data{1,34}{1,1}.avg*10^-6)
+
 out_indx = [34]
 all_data(out_indx)=[]
 
 %% Mean over channels + SEM %%
 load('chan_labels_for_plotting')
-load('C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\johannes\timeseries\Elena plot data\nan_SEM_74teams.mat')
 
 % count number of teams that were averaged for each data point
 all_teams = repmat(length(all_data),1,205);
-number_teams = all_teams-count_nan;% remove nan values where teams had no data for those time windows
 
 allgrpdat = {};
 %create a matrix for a single channel each subject
-SEM_cpz_sbj = nan(33,205)
+GA_cpz_sbj = nan(33,205)
 
 for sbj = 1:33 % for each subject
     sbj_mat = {};
-    for t=1:length(all_data) % for each team
+  
+    for t = 1:length(all_data) % for each team
         sbj_mat{t} = all_data{t}{1,sbj};% structure for each individual subject across all teams
-        if isempty(sbj_mat{t})
+        if isempty(sbj_mat{t})       
             continue
         elseif abs(max(nanmean(sbj_mat{t}.avg,2))) > 20 || abs(max(nanmean(sbj_mat{t}.avg,2))) < 10^-3 && abs(max(mean(sbj_mat{t}.avg,2))) ~=0
            sbj_mat{t}=[]
             continue
         end
+
+%         fig = gcf
+%         exportgraphics(fig, ['ERP_each_team_s17new.pdf'],'Append',true)
+%         close(fig)
+
         % This code assumes that every team has 64 channels
         if length(sbj_mat{t}.label)~=64; error('Not a full set of channels?!'); end
         % Now order channels
@@ -59,36 +72,23 @@ for sbj = 1:33 % for each subject
     if indx_empty
         sbj_mat(indx_empty)=[];
     end
+
     %run timelock grand average across one subject all teams
     allgrpdat{sbj}= ft_timelockgrandaverage([], sbj_mat{:})
 
-    % calculate SEM
-    indx_cpz = find(ismember(chan_labels, 'CPz'))
-    if sum(isnan(allgrpdat{sbj}.var(indx_cpz,:)))==205 % if CPz is missing in all time points
-        error('Inspect. Missing channel in all of the subejcts??')
-    end
-
-    SEM_cpz_sbj(sbj,:) = abs(sqrt(allgrpdat{sbj}.var(indx_cpz,:)))./sqrt(number_teams);
-
-    clear indx_mchan pl_mchan chan_full copy_data order_data number_participants indx_empty
+    clear indx_mchan pl_mchan chan_full copy_data order_data number_participants indx_empty sbj_mat
 end
 
+%% Remove outliers %%
+
+cpz_GA = nan(33,205)
+for i=1:33
+    cpz_GA(i,:)=allgrpdat{i}.avg(32,:)
+end
 
 %plot
-FS              = 256; % sampling rate in Hz
-timeWindow      = [-200 600]; % consistent trial epoching (in ms)
-timeVec_standard1 = flip([ 0 : -1/FS*1000 : timeWindow(1) ]);
-timeVec_standard2        = [ 0 : 1/FS*1000 : timeWindow(2) ];
-timeVec_standard         = [ timeVec_standard1(1:end-1), timeVec_standard2 ];
+figure, plot(timeVec_standard, cpz_GA)
+save('cpz_GA_ERP_33subj', 'cpz_GA')
 
-fig=figure()
-plot(timeVec_standard,SEM_cpz_sbj,'Color',[0.4, 0.4, 0.4, 0.2]), hold on, plot(timeVec_standard,nanmean(SEM_cpz_sbj), 'LineWidth',1.5),...
-    xlabel('time(msec)'), ylabel('SEM at CPz'),fontsize(fig, scale=1.6), hold off
-
-saveas(fig,'SEM_33subj_v2.png')
-T=array2table(SEM_cpz_sbj)
-T_time=array2table(timeVec_standard)
-writetable(T,'SEM_cpz_sbj.csv', 'Delimiter',',')
-writetable(T_time,'standard_time.csv', 'Delimiter',',')
-
-
+T=array2table(cpz_GA)
+writetable(T,'GA_cpz_sbj.csv', 'Delimiter',',')

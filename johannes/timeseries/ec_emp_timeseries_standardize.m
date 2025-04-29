@@ -8,8 +8,8 @@ dirs = [];
 dirs.root       = 'C:\Users\ecesnait\Desktop\EEGManyPipelines\git\EEGManyPipes org\Main_Paper\';
 dirs.scripts    = fullfile(dirs.root, 'johannes\timeseries');
 dirs.data       = fullfile('M:\EMP\EEGManyPipelines\EMP time series exp\EEGLAB all teams');
-dirs.saveDirstand = 'M:\EMP\EEGManyPipelines\EMP time series exp\Standardized\'
-dirs.saveDiravg = 'M:\EMP\EEGManyPipelines\EMP time series exp\TimelockAVG\'
+dirs.saveDirstand = 'Z:\ecesnait\EMP\EMP time series exp\Standardized\'
+dirs.saveDiravg = 'Z:\ecesnait\EMP\EMP time series exp\TimelockAVG\'
 %dirs.n100       = fullfile(dirs.data, 'N100 amplitudes');
 %dirs.EEG3D      = fullfile(dirs.data, 'EEG3D');
 
@@ -71,8 +71,8 @@ fprintf('*** Found %d files:\n%s ***\n', nTeam, strjoin(teamList, ', '));
 % ----------------------------------------------------------------------- %
 %% Loop over teams:
 
-for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perhaps the format, 21,24,69 out of memory, 65,74 - time info missing, 77,78 special case
-    if ismember(iTeam,[1,15,21,24]) % skip temporarily
+for iTeam = 55:nTeam % 15 problem with resampling (interpolation problem) - perhaps the format, 21,24,69,89 out of memory, 65,74,86 - time info missing, 77,78 special case
+    if ismember(iTeam,[1,15,21,24,65,69,74,77,78,86]) % skip temporarily
         continue
     end
 
@@ -138,10 +138,14 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
 
         %% Keep only the selected channels
         indx_chan = [];
+        if isequal(teamList{iTeam}, 'f5e788cb73eec086.mat')
+            rawData(iSub).chan = {rawData(iSub).chan.labels};
+        end
         indx_chan = ismember(rawData(iSub).chan, eegChanVec);
         rawData(iSub).chan = rawData(iSub).chan(indx_chan);
+
         %rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
-        if size(rawData(iSub).EEGts,1) <=80
+        if size(rawData(iSub).EEGts,1) <=80 % first dimention should be channels
             rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
         else
             error('Elena: isnpect dimentions')
@@ -163,7 +167,7 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
         data1.label             = rawData(iSub).chan; % channel labels
         data1.trial             = squeeze(mat2cell(rawData(iSub).EEGts, sum(indx_chan), nTimeFound, ones(1, nTrialFound)))'; % data
         %             if isfield(rawData(iSub).epoch, 'value')
-        data1.trialinfo         = rawData(iSub).epoch; % trigger values per trial (as single row, thus transposed)
+      %  data1.trialinfo         = rawData(iSub).epoch; % trigger values per trial (as single row, thus transposed)
         %             end
         % --------------------------------------------------------------- %
         %% Re-sample to consistent time bins:
@@ -214,24 +218,25 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
         [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label);
 
         chan_full = cell(1,length(eegChanVec));
-        chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)));
+        chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan))); % include labels of existing channels
         for p = 1:length(data4.trial)
             test = data4;
             test.trial{p} = test.trial{p}(pl_mchan(find(pl_mchan)),:);%re-order time series data based on a standard channel order
             trial_templ = nan(length(eegChanVec),length(data4.time{p}));
-            trial_templ(indx_mchan,:) = test.trial{p};
+            trial_templ(indx_mchan,:) = test.trial{p}; % include re-ordered data and NaN are kept for missing channels
             data4.trial(p) = {trial_templ};
         end
         data4.label = eegChanVec;
         % Store time info for a report txt file
         time =data4.time{1,1};
+        data4.trialinfo   = rawData(iSub).epoch;
         % --------------------------------------------------------------- %
         %% Compute summary statistic (mean, variance, dof) across trials:
 
-        fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
-        cfg                     = [];
-        data5                   = ft_timelockanalysis(cfg, data4);
-        % --------------------------------------------------------------- %
+        % fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
+        % cfg                     = [];
+        % data5                   = ft_timelockanalysis(cfg, data4);
+        % % --------------------------------------------------------------- %
         %% Save chan x time matrix in teams x subjects cell:
 
         subID = str2double(extract(rawData(iSub).subID,digitsPattern));%str2double(cell2mat(extractBetween(rawData(iSub).subID, 5, 6)));
@@ -241,8 +246,8 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
         alldatstand{1,subID} = data4;
         alldatstand{2,subID} = ['Subj-',num2str(subID)];
 
-        alldatavg{1,subID} = data5;
-        alldatavg{2,subID} = ['Subj-',num2str(subID)];
+        % alldatavg{1,subID} = data5;
+        % alldatavg{2,subID} = ['Subj-',num2str(subID)];
 
 
         fprintf('*** Subject %02d: FINISHED ***\n', iSub);
@@ -274,12 +279,20 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
             nTrialFound         = size(rawData(iSub).EEGts, 3);
             fprintf('*** Subject %02d: Found data from %d channels, %d time points, %d trials ***\n', ...
                 iSub, nChanFound, nTimeFound, nTrialFound);
+           
             %% Keep only the selected channels
             indx_chan = [];
-            indx_chan = ismember(rawData(iSub).chan, eegChanVec)
-            rawData(iSub).chan = rawData(iSub).chan(indx_chan)
-            rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:)
+            if isequal(teamList{iTeam}, 'f5e788cb73eec086.mat')
+                rawData(iSub).chan = {rawData(iSub).chan.labels};
+            end
+            indx_chan = ismember(rawData(iSub).chan, eegChanVec);
+            rawData(iSub).chan = rawData(iSub).chan(indx_chan);
 
+            if size(rawData(iSub).EEGts,1) <=80 % first dimention should be channels
+                rawData(iSub).EEGts = rawData(iSub).EEGts(indx_chan,:,:);
+            else
+                error('Elena: isnpect dimentions')
+            end
             % --------------------------------------------------------------- %
             %% Create Fieldtrip structure:
             % Check if data exists (or subject excluded), if not, then skip:
@@ -342,29 +355,30 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
                         data4.trial(p) = {[nan_start, data4.trial{p}, nan_end]}
                     end
                 end
-                % Missing channels
-                if length(data4.label) ~= length(eegChanVec)
-                    [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label)
+                  %% Missing channels and channel order
+        [indx_mchan pl_mchan] = ismember(eegChanVec,data4.label);
 
-                    chan_full = cell(1,length(eegChanVec))
-                    chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan)))
-                    for p = 1:length(data4.trial)
-                        test = data4
-                        test.trial{p}=test.trial{p}(pl_mchan(find(pl_mchan)),:)%re-order time series data based on a standard channel order
-                        trial_templ = nan(length(eegChanVec),length(data4.time{p}));
-                        trial_templ(indx_mchan,:) = test.trial{p}
-                        data4.trial(p) = {trial_templ}
-                    end
-                    data4.label = eegChanVec;
+        chan_full = cell(1,length(eegChanVec));
+        chan_full(indx_mchan)=data4.label(pl_mchan(find(pl_mchan))); % include labels of existing channels
+        for p = 1:length(data4.trial)
+            test = data4;
+            test.trial{p} = test.trial{p}(pl_mchan(find(pl_mchan)),:);%re-order time series data based on a standard channel order
+            trial_templ = nan(length(eegChanVec),length(data4.time{p}));
+            trial_templ(indx_mchan,:) = test.trial{p}; % include re-ordered data and NaN are kept for missing channels
+            data4.trial(p) = {trial_templ};
+        end
+        data4.label = eegChanVec;
+        % Store time info for a report txt file
+        time =data4.time{1,1};
+        data4.trialinfo   = rawData(iSub).epoch;
 
-                end
                 % --------------------------------------------------------------- %
                 %% Compute summary statistic (mean, variance, dof) across trials:
 
-                fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
-                cfg                     = [];
-                data5                   = ft_timelockanalysis(cfg, data4);
-                %% Save chan x time matrix in teams x subjects cell:
+                % fprintf('*** Subject %02d: Compute summary statistics across trials ***\n', iSub);
+                % cfg                     = [];
+                % data5                   = ft_timelockanalysis(cfg, data4);
+                % %% Save chan x time matrix in teams x subjects cell:
 
                 subID = str2double(extract(rawData(iSub).subID,digitsPattern));%str2double(cell2mat(extractBetween(rawData(iSub).subID, 5, 6)));
                 fprintf('*** Subject %02d: Save under subject ID %02d ***\n', iSub, subID);
@@ -372,9 +386,9 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
                 % Save in cell:
                 alldatstand{1,subID} = data4;
                 alldatstand{2,subID} = ['Subj-',num2str(subID)];
-
-                alldatavg{1,subID} = data5;
-                alldatavg{2,subID} = ['Subj-',num2str(subID)];
+                % 
+                % alldatavg{1,subID} = data5;
+                % alldatavg{2,subID} = ['Subj-',num2str(subID)];
 
             end % if data is empty
             fprintf('*** Subject %02d: FINISHED ***\n', iSub);
@@ -387,14 +401,14 @@ for iTeam = 79:nTeam % 15 problem with resampling (interpolation problem) - perh
 
     %save
     save([dirs.saveDirstand,'standart_',extractBefore(teamList{iTeam},'.mat')], 'alldatstand','-v7.3')
-    save([dirs.saveDiravg,'sbjavg_',extractBefore(teamList{iTeam},'.mat')], 'alldatavg','-v7.3')
+    % save([dirs.saveDiravg,'sbjavg_',extractBefore(teamList{iTeam},'.mat')], 'alldatavg','-v7.3')
 
-    %create a report
-    fileID = fopen([dirs.saveDirstand, 'standartization_report.txt'],'a+');
-    fprintf(fileID,'\n %s',datestr(datetime), ...
-        ['Processed team: ', teamList{iTeam}], ['Time window: ', num2str(time(1)),' to ', num2str(time(end))],...
-        ['Number of channels: ', num2str(sum(indx_chan))]);
-    fclose(fileID);
+    % %create a report
+    % fileID = fopen([dirs.saveDirstand, 'standartization_report.txt'],'a+');
+    % fprintf(fileID,'\n %s',datestr(datetime), ...
+    %     ['Processed team: ', teamList{iTeam}], ['Time window: ', num2str(time(1)),' to ', num2str(time(end))],...
+    %     ['Number of channels: ', num2str(sum(indx_chan))]);
+    % fclose(fileID);
 
     clear  rawData alldatstand data4 nChanFound
 end % end iTeam

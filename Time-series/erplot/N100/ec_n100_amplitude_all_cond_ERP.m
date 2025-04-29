@@ -29,7 +29,7 @@ tstop = 120
 
 allgrpdat_full{1,2}.label{end} = 'Cz' % a typo
 
-for pp = 60:length(allgrpdat_full)
+for pp = 1:length(allgrpdat_full)
      xstart = dsearchn(allgrpdat_full{1,pp}.time', tstart)
      xstop  = dsearchn(allgrpdat_full{1,pp}.time', tstop)
 
