@@ -2,9 +2,12 @@
 
 # Folders
 *nobackup*
-Time-series/erplot/plots/
 data/
+Time-series/erplot/plots/
+Time-series/glm_erp/
+Time-series/temp_figs/
 
 # Files extensions
 *.asv*
 *.png*
+*.Rhistory*
