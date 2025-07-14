@@ -44,6 +44,26 @@ imagesc(t_ica < -2 | t_ica > 2); title('Coef t-values')
 % clim([-5 5]); colorbar
 ylabel('Channel #'); xlabel("time index")
 
+% TOPOPLOTS
+tmpdat = [];
+tmpdat.time     = time;
+tmpdat.label    = label;
+tmpdat.dimord   = 'chan_time';
+tmpdat.avg1     = beta_ica(:,:,1);
+tmpdat.avg2     = beta_ica(:,:,1)+beta_ica(:,:,2);
+
+outdir =  'C:\Users\ncb623\EMP\Main_Paper\Time-series\temp_figs';
+util_topoplot(tmpdat, -0:0.1:0.4, [], 'avg1', outdir)
+util_topoplot(tmpdat, -0:0.1:0.4, [], 'avg2', outdir)
+
+tmpdat.dimord   = 'rpt_chan_time';
+tmpdat.avg      = permute(beta_ica, [3,1,2]);
+grp = [1 2];
+colmap = [1 0 0;
+          0 0 1];
+
+util_singleplot(tmpdat, 'Pz', 'avg', grp, colmap, outdir)
+
 
 % Reref
 c = [floor(min(beta_ref(:))), ceil(max(beta_ref(:)))];

@@ -51,7 +51,7 @@ cfg.channel = chan;
 slctdat = ft_selectdata(cfg, avgdat);
 
 % Plot
-figure(); hold on
+fig = figure(); hold on
 for ii = 1:n_lines
     grpidx = group(ii);
     plot(avgdat.time, squeeze(slctdat.(param)(ii,:)), 'Color', groupColors(grpidx,:));
@@ -60,7 +60,7 @@ hold off
 
 % Export
 if writeto
-    tmpfname = fullfile(writeto, ['topo_', num2str(tt)]);
+    tmpfname = fullfile(writeto, [param, '_', chan]);
     fprintf('Writing file %s...', tmpfname)
     print(fig, tmpfname, '-r800', '-dpng');
     disp('done')
