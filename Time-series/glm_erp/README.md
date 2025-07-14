@@ -21,4 +21,5 @@ There are here also example scripts used to test out the methods. There were use
 Second version is (an attempt) at implementing the same analysis as the first attempt, but in a more cohernt and easier to use way, using the *Unfold Julia* toolbox (www.unfoldtoolbox.org). This version make use of a version of Unfold that is still in development, which has the option to do cluster-based statistics, which is better for statistical inference on channel x times data - i.e., A solution to the multiple comparison problem in the first version.
 
 Order of steps:
-1) So far everythin is in the `mixed_models.jl` script.
+1) Arange the standardised ERP data with `mcv_arrangeERPdat.m` - this step might be overlapping with what is already done with other analyses in EMP.
+2) So far everythin is in the `mixed_models.jl` script. Work in progress!

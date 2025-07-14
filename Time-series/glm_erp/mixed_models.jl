@@ -3,10 +3,16 @@ using MAT
 using DataFrames
 using DataFramesMeta
 using CategoricalArrays
-using Unfold
-using UnfoldMakie, CairoMakie       # for plotting
-using UnfoldSim
+# using Unfold
+# using UnfoldMakie, CairoMakie       # for plotting
+# using UnfoldSim
 using CSV
+using UnfoldMixedModels
+
+using MixedModelsPermutations, ClusterDepth # both necessary to activate correct extension!
+using UnfoldStats
+using StatsModels
+using Random
 
 #################################################################################################################
 # READ DATA
@@ -48,10 +54,10 @@ end
 
 # Arrange data and make event DataFrame
 long_data, events = reshape_with_factors(alldat)
-# long_data = replace(long_data, NaN=>missing)      # This and model fit does not work
+long_data = replace(long_data, NaN=>missing)      # This and model fit does not work
 
 # NOTE: time dimension is just from 1 to length of data. Should somewhere be aligned to the correct time axis.
-times_cont = range(-0.2,length=n_t, step=1/256) 
+times_cont = range(-0.2, length=n_t, step=1/256) 
 
 ## Get questionnaire data and arrange
 qdat = CSV.read("C:\\Users\\ncb623\\EMP\\data\\all_var_AQ_h1.csv", DataFrame)
@@ -91,10 +97,20 @@ df = innerjoin(events, qdat, on = :grp)
 # GLMM
 #################################################################################################################
 # formula: random effects only [NOTE: so far not working]
-f = @formula(0 ~ reref + (reref | subj))
+f = @formula(0 ~ reref + (1 | subj) + (1|grp))
 
 # Fit the model
 m = fit(UnfoldModel, f, df, long_data, times_cont, show_progress=true);
+
+## Fit LMM
+m = fit(
+    UnfoldModel,
+    [Any => (f,times_cont)],
+    df,
+    long_data,
+    show_progress=true
+);
+
 
 m
 
@@ -104,4 +120,10 @@ coeftable(m)
 
 results = coeftable(m)
 
-plot_erp(coeftable(m))
+plot_erp(coeftable(m)
+
+## SANDBOX
+using GLM
+data = DataFrame(X=[1,2,3,5,10], Y=[2,4,missing,3,5])
+ols = lm(@formula(Y ~ X), data)
+nobs(ols) # Gives 4
