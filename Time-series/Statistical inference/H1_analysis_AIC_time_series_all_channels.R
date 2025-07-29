@@ -1,69 +1,21 @@
 rm(list = ls())
-
+Sys.setenv(LANG = "en")
 #install.packages("jtools")
 library(jtools)
-library(readxl)
+#library(readxl)
 library(car)
 library(ggplot2)
-
-#Loading the data
-
-h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1.csv")
-h1_data <- as.data.frame(h1_data)
-
-## --------------------
-# Correct values
-## --------------------
-
-# Software
-h1_data$software[h1_data$software== 'eeglab_erplab'] <- 'eeglab'
-h1_data$software[h1_data$software== 'eeglab_limo'] <- 'eeglab'
-
-# #Fill in empty responses
-# # High-pass filter type & direction
-# h1_data$ans_hf_type[h1_data$ans_hf_type== ''] <- 'unknown'
-# 
-# h1_data$ans_hf_direction[h1_data$ans_hf_direction == ''] <- 'unknown'
-table(h1_data$reref)
-
-#filter type
-table(h1_data$ans_hf_type)
-h1_data$ans_hf_type[h1_data$ans_hf_type == 'IIR'] <- 'hf_iir'
-
-# Segment exclusion criteria
-# h1_data$ans_exclusion_criteria_seg[h1_data$ans_exclusion_criteria_seg == ''] <- 'unknown'
-
-#Time window start, end & length
-#exchange missing values to the mean of the column
-# h1_data$ans_time_w_start_h1[is.na(h1_data$ans_time_w_start_h1)] <- mean((h1_data$ans_time_w_start_h1), na.rm = T) 
-# 
-# h1_data$ans_time_w_end_h1[is.na(h1_data$ans_time_w_end_h1)] <- mean((h1_data$ans_time_w_end_h1), na.rm = T) 
-# h1_data$time_w_length_h1[is.na(h1_data$time_w_length_h1)] <- mean((h1_data$time_w_length_h1), na.rm = T) 
-# # ICA algorythm
-# h1_data$ans_ica_algo[h1_data$ans_ica_algo == ''] <- 'unknown'
-
-#Baseline start and stop
-h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200 ms'] <- '-200'
-h1_data$ans_baseline_start[h1_data$ans_baseline_start == '-200ms'] <- '-200'
-
-h1_data$ans_baseline_start <- as.numeric(h1_data$ans_baseline_start)
-# h1_data$ans_baseline_start[is.na(h1_data$ans_baseline_start)] <-mean((h1_data$ans_baseline_start), na.rm = T) 
-# h1_data$ans_baseline_stop[is.na(h1_data$ans_baseline_stop)] <- mean((h1_data$ans_baseline_stop), na.rm = T)
-
-# Change baseline window length 0 to the mean of the column because 0 is dragging the effect
-h1_data$bs_window_length[h1_data$bs_window_length == 0] <- mean(h1_data$bs_window_length[h1_data$bs_window_length != 0], na.rm = T) 
+#library(ggcorrplot)
+library(tidyr)
+library(MASS)
+library(dplyr)
+#install.packages("scales")
+library(scales)
 
 
-#remove binary response and p-values
-data <- h1_data[,c(-1,-27,-28)]
-data$ans_ica_algo[data$ans_ica_algo=='runica'] <- 'infomax'
+#Loading the AQ data
 
-## --------------------
-# outliers removal
-## --------------------
-# 
-hf_out <- boxplot(data$hf_cutoff)$out
-data$hf_cutoff[which(data$hf_cutoff == hf_out)] <- mean((data$hf_cutoff), na.rm = T) # removed one team that had 3 for a  HP filter
+h1_data <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/Data/Big Analysis/all_var_AQ_h1_corrected.csv")
 
 ## --------------------
 # Load mean N1 difference wave
@@ -78,22 +30,26 @@ loc <- match(ID_diff,AQ_ID$Var1, nomatch = 0)
 ID_matched <- AQ_ID$Var1[loc]
 
 setdiff(ID_diff,ID_matched)
-data_matched <- data[loc,]
+data_matched <- h1_data[loc,]
 
-#test <- cbind(ID_matched, data_matched)
-which(data_matched$software=='R') # one team indicated R in a software, but Python in the host. From the scale of their time-series data, it looks like they used mne to prepro-cess
-data_matched$software[data_matched$software=='R'] <- 'mnepython'
-indx_mne <- which(data_matched$software=='mnepython')
-diff_wave[indx_mne,2:ncol(diff_wave)] <- diff_wave[indx_mne,2:ncol(diff_wave)] * 10^6
+# bring diff wave from volts to microvolts
+V_IDs <- c("08de3c5e092173e4", "0ba1c7f1dafc1134", "0bc9ee704db74104", "19e8ad8bf94af489",
+           "344dd59ded90cb34", "48e64dc185199502", "628a18bc8a3d36dd", 
+           "77fddd91c557626d", "7f3fe2bc79a9d3f9","8559e4d7314e45ec", "8c587a4cbf53865d",
+           "90420442f22fa870", "9985e8ae6679b0e2","CIMHPipe", "TheCodeMechanics", "Varuwa",
+           "a0cf32754296214f","a25b8419335d2131","aa6aa366e9788967", 
+           "b0edd369b6d8f4f1", "bd3077a83b5b16bd", "c0c75576f9cd0b2a", "c577d3cdf78548ce",
+           "c91e489c4acd0bf4","da33cf2264c9baa2", "e13e7e07b99d853b", "e146a94b29a41713", 
+           "e2d0d90e5cf594ed","e69a83408d1f3811","e72d90a6ff4b5108", "ea6b1d1870708b82",
+           "ee8c062e3dc35b1d", "eef1406b3fca3e9c", "f92a1d6a49d0d40a", "ff8bf48d04d11c84") 
 
-#same problem with brainstorm team
-indx_brainstorm <- which(data_matched$software=='brainstorm')
-diff_wave[indx_brainstorm,2:ncol(diff_wave)] <- diff_wave[indx_brainstorm,2:ncol(diff_wave)] * 10^6
+diff_wave[diff_wave$ID %in% V_IDs,2] <- diff_wave[diff_wave$ID %in% V_IDs,2] * 10^6
 
 ## --------------------
 # scale continuous data
 ## --------------------
-# 
+# remove data that will not be used in LMs
+data_matched <- data_matched[,c(-1,-27: -29)]
 
 continuous <- c(3, 7, 8, 10, 16:18, 23:25)
 
@@ -109,13 +65,10 @@ for (i in 1:length(continuous)) {
 
 # exclude variables that have high collinearity >0.6
 collinearity_indx <- match(c("topo_region_h1","ans_software_host","mc_method_h1","ans_exclusion_criteria_seg","ans_baseline_stop",
-                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start","ans_hf_direction","software"), colnames(data)) # 37
+                             "ans_time_w_end_h1", "ans_time_w_start_h1", "ans_baseline_start","ans_hf_direction","software"), colnames(data_matched)) # 37
 
 data_reduced <- data_matched[,-collinearity_indx] 
-#inclusing categorical data
-#install.packages('ggcorrplot')
-library(ggcorrplot)
-library(tidyr)
+
 #find the ones above 0.6
 all_cor <- model.matrix(~0+., data=data_reduced) %>% 
   cor(use="pairwise.complete.obs")
@@ -132,7 +85,6 @@ diff_wave <- diff_wave[-43,]
 #Approach 1. Using the step function.
 #Checking different models using the step function. 
 #loop over channels
-library(MASS)
 
 sig_names <- data.frame(a=NA, b=NA, c=NA, d=NA)
 for (x in 1:64) {
@@ -168,12 +120,15 @@ for (x in 1:64) {
   sig_names[x,1:length(names_model[indx_sig])] <- names_model[indx_sig]
   
 }
+
 # unique(sig_names)
 combined <- as.data.frame(apply(sig_names, 1, 
              function(x) paste(x[!is.na(x)], collapse = ", ")))
+
 colnames(combined) <- "var"
 classes <- unique(combined)
 colnames(classes) <- "var"
+
 # combined$class <- 0
 # for (x in 1:nrow(classes)) {
 #   indx <- which(combined$var==classes$var[x])
@@ -224,15 +179,11 @@ ggplot(headShape,aes(x,y))+
   coord_equal()
 
 #set color
-#install.packages("scales")
-library(scales)
-MyColor<-RColorBrewer::brewer.pal(12, "Set3")
-#"#EF7F4FFF","#B6308BFF", "#5901A5FF"))
-#jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"))
 
-#data
-#allData <- topotest %>% left_join(electrodeLocs, by = "electrode")
-#singleTimepoint <- filter(allData,Times == 170.90)
+MyColor<-RColorBrewer::brewer.pal(12, "Set3")
+
+#augment colorscale 
+MyColor_extend <- colorRampPalette(MyColor)(13)
 
 ## TOPOPLOT FOR ALL TEAMS ##
 #tiff("C:/Users/ecesnait/Desktop/EEGManyPipelines/git/EEGManyPipelines-personal/Result forms/figures/topoplot_h3a.png", units="in", width=4, height=3, res=300)
@@ -243,52 +194,12 @@ ggplot(headShape,aes(x,y))+
   geom_path(linewidth = 1.5)+
   geom_point(data = myData,aes(x,y,colour = class),size = 3)+ #note: oob = squish forces everything outside the colour limits to equal nearest colour boundary (i.e. below min colours = min colour)
   geom_line(data = nose,aes(x, y, z = NULL),size = 1.5)+
-  scale_colour_manual(values = MyColor)+
+  scale_colour_manual(values = MyColor_extend)+
   theme_topo()+ theme(legend.text=element_text(size=15), legend.title = element_text(size=15))+
   coord_equal() 
 #dev.off()
 
 
-#Barpltos for H
-bar <- read.csv("C:/Users/ecesnait/Desktop/EEGManyPipelines/git/EEGManyPipelines-personal/Result forms/Data/results_h3b_overview.csv")
-#read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/results_resubmitted_h1_168.csv", sep=";")
-
-#bar <- bar[1:240,]
-bar_u <- bar[match(unique(bar$team_identifier), bar$team_identifier), ]
-indx_sig <- which(bar_u$significance == "no?")
-bar_u$significance[indx_sig] <- "no"
-
-bar_T <- as.data.frame(table(bar_u$significance))
-bar_T <- bar_T[-1,] # 3 teams with no answer - inspect later
-
-tiff("C:/Users/ecesnait/Desktop/EEGManyPipelines/git/EEGManyPipelines-personal/Result forms/figures/h3b_yes_no.png", units="in", width=4, height=5, res=300)
-
-ggplot(data=bar_T, aes(x=Var1, y=Freq)) +
-  geom_bar(stat="identity", fill="steelblue")+
-  theme_minimal() +  scale_x_discrete(name ="")+
-  theme(text = element_text(size = 27))
-dev.off()
-
-##plot scatter of pvalues
-pval <- as.numeric(bar$p_values)
-pval_ord <- as.data.frame(pval[order(pval)])
-pval_ord$y <- c(1:240)
-colnames(pval_ord) <- c("pval", "y")
-
-ggplot(pval_ord, aes(x=pval, y=y)) + 
-  geom_point(color="steelblue", size = 3, alpha = 0.2) + xlim(0,0.5)+
-  theme_minimal() +  ylim(name ="") +
-  theme(text = element_text(size = 20))
-
-t_stand_p <- as.data.frame(table(bar$p_values_stand))
-t_stand_p<-t_stand_p[order(t_stand_p$Freq),]
-colors <- magma(30)
-
-ggplot(t_stand_p, aes(x="", y=Freq, fill=Var1)) +
-  geom_bar(stat="identity", width=1, color="white") + scale_fill_manual(values = colors, name = "p-val")+
-  coord_polar("y", start=0) +
-  theme_void(base_size = 20) # remove background, grid, numeric labels
-#pie(table(bar_u$p_values_stand),cex = 2)
 
 
 
