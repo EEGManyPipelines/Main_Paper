@@ -5,6 +5,7 @@ cd('C:\Users\ncb623\EMP\data')
 
 %% Only rfx model
 load('thetadat.mat')
+grptab = readtable('grptab.csv');
 
 %% Image
 c = [0, ceil(max([grp(:);subj(:);resid(:)]))];
@@ -81,7 +82,7 @@ ylabel('Channel #'); xlabel("time index")
 %% Fx model #2
 load('fxmod_software.mat')
 
-% ICA
+% Toolbox
 c = [floor(min(beta_tool(:))), ceil(max(beta_tool(:)))];
 
 figure;
