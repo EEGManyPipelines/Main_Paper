@@ -22,7 +22,6 @@ library(paletteer)
 
 # Loading the data, change path accordingly! ~
 h1_preproc <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/all_var_AQ_h1_corrected.csv')
-h1_preproc$topo_region_h1[h1_preproc$topo_region_h1=='posterior'] <- 'parietal'
 
 #exchange 'unknown' entries as NA
 h1_preproc[] <- lapply(h1_preproc, function(x) ifelse(x == "unknown", NA, x))
