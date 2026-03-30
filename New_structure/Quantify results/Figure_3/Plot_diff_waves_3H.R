@@ -15,13 +15,13 @@ outDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/'
 inDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/for plotting/FINAL 3 H difference wave plotting/'
 
 # file names
-all_amp <- c('H1_amplitude.mat','H2a_amplitude.mat','H3a_amplitude_reversed_Fz.mat')
-all_time <- c('H1_time_xaxis.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat')
-outName <- c("diff_wave_H1.png","diff_wave_H2a.png","diff_wave_H3a.png")
+all_amp <- c('H1_amplitude.mat','H2a_amplitude.mat','H3a_amplitude_reversed_Fz.mat','H3a_amplitude_reversed_Pz.mat')
+all_time <- c('H1_time_xaxis.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat','H3a_time_xaxis.mat')
+outName <- c("diff_wave_H1.png","diff_wave_H2a.png","diff_wave_H3a_Fz.png","diff_wave_H3a_Pz.png")
 
 #variable names
-in_amp_name <- c('all.y','amp.h2a','amp.h3a')
-in_time_name <- c('time.x','time.h2a', 'time.h3a')
+in_amp_name <- c('all.y','amp.h2a','amp.h3a', 'amp.h3a')
+in_time_name <- c('time.x','time.h2a', 'time.h3a','time.h3a')
 
 #xmin_rect <- c(80, 300, 300)
 #xmax_rect <- c(120, 500, 500)
@@ -29,7 +29,7 @@ in_time_name <- c('time.x','time.h2a', 'time.h3a')
 stimulus_y_all = c(1.5,-1,-2) # y-axis coordinates for 'stimulus' notation
 # plot all difference waves in a loop
 
-for (i in c(1:3)) {
+for (i in c(1:4)) {
   # read in our data
   amp <- readMat(paste0(inDir,all_amp[i]))
   amp <- eval(parse(text=paste0('amp$',in_amp_name[i])))  # rows are teams and columns are time points

@@ -13,7 +13,6 @@ library(sandwich)
 #Loading the data
 h3a_data <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/all_var_AQ_h3a_corrected.csv')
 
-
 # Remove teams that didn't report the p-value
 indx_no_p <- which(is.na(h3a_data$pval)) # 52 teams did not report a p-value
 h3a_data <- h3a_data[-indx_no_p,] # 
@@ -28,7 +27,7 @@ data <- h3a_data[,c(-1,-14,-15,-17, -18:-20, -26, -27)]
 class(h3a_data$pval)
 
 #hist(qnorm(h3a_data$pval))
-data$pval <- qnorm(h3a_data$pval)#qnorm(0.975,mean=0,sd=1)
+data$pval <- qnorm(h3a_data$pval)#
 
 ## --------------------
 # scale continuous data
@@ -61,11 +60,12 @@ which(abs(all_cor)>0.8 & abs(all_cor)!=1, arr.ind=TRUE) #
 # 
 empty_row <- which(is.na(data_reduced),arr.ind=TRUE) # 
 indx_row <- empty_row[,1]#
+
 # Caution: remove them from the dataset
 data_reduced <- data_reduced[-indx_row,]
 rownames(data_reduced) <- c(1:114)
 
-# Remove an outlier based on Cooks distance
+# Remove an outlier based on the procedures below
 data_reduced <- data_reduced[-105,]
 
 #rename columns
@@ -84,7 +84,7 @@ car::vif(fullmodel_h3a)
 # Stepwise model
 stepwise_model <- stepAIC(fullmodel_h3a, direction = "both", trace = T, k = log(nrow(data_reduced)))
 summary(stepwise_model)
-summ(stepwise_model, confint = TRUE, digits = 4) # nicer vizualisation
+#summ(stepwise_model, confint = TRUE, digits = 4) # nicer vizualisation
 confint(stepwise_model)
 
 
