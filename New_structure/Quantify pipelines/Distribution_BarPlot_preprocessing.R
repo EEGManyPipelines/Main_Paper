@@ -6,13 +6,6 @@ rm(list = ls())
 source('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/git/EEGManyPipelines-personal/R codes/log_output.R')
 
 #-----Loading the data and packages-----#
-
-# Install and load packages if needed! ~
-#install.packages("dplyr")
-#install.packages("entropy")
-#install.packages("ggplot2")
-#install.packages("RColorBrewer")
-
 library(dplyr)
 library(ggplot2)
 library(entropy)
@@ -59,7 +52,7 @@ p3 <- ggplot(AQ_cont, aes(x=`excl. participants`)) +
   labs(y = "% of teams")+
   theme(text = element_text(size = 20))
 
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_density.png", 
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_density.png", 
      units="in", width=3.5, height=5.8, res=300)
 ggarrange(p1,p2,p3,nrow = 3,ncol = 1) #nrow & ncol depend on how you want to 
 #organize your plots
@@ -133,14 +126,17 @@ for (i in 1:length(plot_names_ordered)) {
 
 coul <- c("#E9F8F6FF", "#CCE5E2FF", "#AFD1CEFF", "#92BEBAFF", "#75AAA6FF", "#579791FF",
           "#3A837DFF", "#1D7069FF", "#005C55FF" )
+
 extended_palette <- colorRampPalette(coul)(12)
 
 
 # Barplot the data
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_barplots_v2.png", units="in", 
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_barplots_v2.png", units="in", 
      width=11, height=5.2, res=300)
 par(mar=c(4,9,2,1), cex=2) #bottom, left, top, right
-barplot(data_barplot, col="#92BEBAFF" , border="white", 
+#par(mar = c(2, 2, 2, 2))  # reduce margins
+
+barplot(data_barplot, col=extended_palette , border="white", 
         horiz=T, las=1, xlab = "% of teams")
 
 # add most popular options
