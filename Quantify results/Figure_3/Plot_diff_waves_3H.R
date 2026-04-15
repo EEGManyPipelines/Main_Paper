@@ -15,7 +15,7 @@ outDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/'
 inDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/for plotting/FINAL 3 H difference wave plotting/'
 
 # file names
-all_amp <- c('H1_amplitude.mat','H2a_amplitude.mat','H3a_amplitude_reversed_Fz.mat','H3a_amplitude_reversed_Pz.mat')
+all_amp <- c('H1_amplitude.mat','H2a_amplitude_v2.mat','H3a_amplitude_reversed_Fz.mat','H3a_amplitude_reversed_Pz.mat')
 all_time <- c('H1_time_xaxis.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat','H3a_time_xaxis.mat')
 outName <- c("diff_wave_H1.png","diff_wave_H2a.png","diff_wave_H3a_Fz.png","diff_wave_H3a_Pz.png")
 

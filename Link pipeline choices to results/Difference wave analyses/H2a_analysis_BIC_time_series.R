@@ -35,7 +35,7 @@ for (i in 1:length(continuous)) {
 
 ## ------------------------------------------------------------------------------------
 ## Load time-series data
-EEG <- read.csv('/Volumes/aebusch/aebuschgold/ecesnait/EMP/EMP time series exp/TimelockAVG_Hyp2a/h2a_difference_wave_front_tw.csv')
+EEG <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/h2a_difference_wave_front_tw_v2.csv')
 EEG_ID <- EEG$ID
 
 indx <- pipe_ID %in% EEG_ID
@@ -78,11 +78,6 @@ indx_row <- empty_row[,1]#
 data_reduced <- data_reduced[-indx_row,]
 data_plot <- data_plot[-indx_row,]
 
-#Approach 1. Using the step function.
-#Checking different models using the step function. 
-#fullmodel<- lm(diffwave~ . , data = data_reduced)
-#summary(fullmodel)
-#car::vif(fullmodel)
 
 ## ------------------------------------------------------------------------------------
 
@@ -92,7 +87,7 @@ collinearity_indx <- match(c("ans_software_host"), colnames(data_reduced)) # 37
 data_reduced <- data_reduced[,-collinearity_indx] 
 rownames(data_reduced) <- NULL
 
-#remove influential cases based on Cook's distance
+#remove influential cases based on Cook's distance and homoscedasticity
 data_reduced <- data_reduced[c(-21,-19,-23),]
 
 #correct the names
@@ -148,6 +143,8 @@ bptest(stepwise_model) #p-value = 0.02491 suggests homoscedasticity
 
 #Fix by performing robust covariance estimators
 robust_se <- coeftest(stepwise_model,vcov=vcovHC(stepwise_model, type="HC3")) # still one outlier remaining
+robust_se
+confint(robust_se)
 
 #find the observation that doesn't converge
 ## 1) Find extreme leverage (hat) values

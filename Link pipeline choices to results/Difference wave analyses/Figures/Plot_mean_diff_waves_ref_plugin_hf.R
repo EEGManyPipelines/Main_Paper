@@ -13,17 +13,17 @@ library(tidyverse)
 library(ggplot2)
 
 # To color code difference waves based on the high-pass or reference? 'ref' or 'hf' or 'bad_cmp'
-color_value <- c('hf')
+color_value <- c('ref')
 outName <- c(paste0("avg_diff_wave_H1_",color_value,".png"), paste0("avg_diff_wave_H2a_",color_value,".png"),
              paste0("avg_diff_wave_H3a_Fz_",color_value,".png"), paste0("avg_diff_wave_H3a_Pz_",color_value,".png"))
-stim_y_coord <- c(0.3,-0.25,-0.5)#for reference channel: c(0.8,-0.5,-1)#  # for other: c(0.3,-0.25,-0.5)
+stim_y_coord <- c(0.8,-0.5,-1)#for reference channel: c(0.8,-0.5,-1)#  # for other: c(0.3,-0.25,-0.5)
 
 #Load data
 # Mean difference wave
 # set paths
 inDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/for plotting/FINAL 3 H difference wave plotting/'
 
-all_amp <- c('H1_amplitude.mat','H2a_amplitude.mat','H3a_amplitude_reversed_Fz.mat', 'H3a_amplitude_reversed_Pz.mat')
+all_amp <- c('H1_amplitude.mat','H2a_amplitude_v2.mat','H3a_amplitude_reversed_Fz.mat', 'H3a_amplitude_reversed_Pz.mat')
 all_time <- c('H1_time_xaxis.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat','H3a_time_xaxis.mat')
 all_IDs <- c('IDs_h1_diff_wave.mat','IDs_h2a_diff_wave.mat', 'IDs_h3a_diff_wave.mat', 'IDs_h3a_diff_wave.mat')
 

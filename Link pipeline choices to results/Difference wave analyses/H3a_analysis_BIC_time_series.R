@@ -31,8 +31,12 @@ for (i in 1:length(continuous)) {
 
 ## ------------------------------------------------------------------------------------
 ## Load time-series data
+# Fz data:
 EEG <- read.csv('/Volumes/aebusch/aebuschgold/ecesnait/EMP/EMP time series exp/TimelockAVG_Hyp3a/h3a_difference_wave_FN400_reversed.csv')
-EEG <- read.csv('/Volumes/aebusch/aebuschgold/ecesnait/EMP/EMP time series exp/TimelockAVG_Hyp3a/h3a_difference_wave_LPC.csv')
+
+#Pz data:
+#EEG <- read.csv('/Volumes/aebusch/aebuschgold/ecesnait/EMP/EMP time series exp/TimelockAVG_Hyp3a/h3a_difference_wave_LPC_reversed.csv')
+
 EEG_ID <- EEG$ID
 
 indx <- pipe_ID %in% EEG_ID
@@ -60,7 +64,7 @@ data_reduced <- data_reduced[pl_indx,]
 data_plot <- data_plot[pl_indx,]
 
 #inspect dependent variable
-boxplot(EEG$DW)
+#boxplot(EEG$DW)
 data_reduced$diffwave <- EEG$DW
 data_plot$diffwave <- EEG$DW
 
@@ -85,7 +89,7 @@ data_reduced <- data_reduced[,-collinearity_indx]
 rownames(data_reduced) <- NULL
 
 # remove an outlier based on Cook's distance
-data_reduced <- data_reduced[c(-19, -23),]
+data_reduced <- data_reduced[c(-19,-21),]#for Pz data it's c(-19,-21), for Fz c(-20, -22, -36)
 
 #correct names
 colnames(data_reduced) <- c("software", "high-pass cutoff", "high-pass type", "high-pass dir.",

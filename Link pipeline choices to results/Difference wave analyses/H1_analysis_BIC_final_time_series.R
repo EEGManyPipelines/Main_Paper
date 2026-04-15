@@ -25,14 +25,18 @@ preproc_data <- h1_data[,c(-1,-10,-11,-13:-20,-24,-25,-27:-29)] # all variables 
 # Load mean N1 difference wave
 ## --------------------
 # 
-diff_wave <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/n1_amplitudes_v2.csv")
+diff_wave <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/n1_amplitudes_v3.csv")
 AQ_ID <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/IDs_linear_models.csv")
 
 # Match IDs
 ID_diff <- diff_wave[,1]
 setdiff(ID_diff,AQ_ID$teamID)
 
-AQ_ID[AQ_ID$teamID %in% "The Code Mechanics",1] <- "TheCodeMechanics" # correct a typo
+ID_diff[ID_diff %in% "TheCodeMechanics"] <- "The Code Mechanics" # correct a typo
+ID_diff[ID_diff %in% "19068f1fe266c5e1_1"] <- "19068f1fe266c5e1" # correct a typo
+ID_diff[ID_diff %in% "356c77bfd2662b9a_H1"] <- "356c77bfd2662b9a" # correct a typo
+ID_diff[ID_diff %in% "gNeC.mat"] <- "gNeC" # correct a typo
+
 loc <- match(ID_diff,AQ_ID$teamID, nomatch = 0)
 ID_matched <- AQ_ID$teamID[loc]
 
@@ -43,7 +47,7 @@ data_matched <- preproc_data[loc,]
 
 # bring diff wave from volts to microvolts - only relevant for hypothesis 1. Later hypotheses had this implementation for amplitude calculation
 V_IDs <- c("08de3c5e092173e4", "0ba1c7f1dafc1134", "0bc9ee704db74104", "19e8ad8bf94af489",
-           "344dd59ded90cb34", "48e64dc185199502", "628a18bc8a3d36dd", "73473e3e1798d1d2",
+           "344dd59ded90cb34", "48e64dc185199502", "628a18bc8a3d36dd", 
            "77fddd91c557626d", "7f3fe2bc79a9d3f9","8559e4d7314e45ec", "8c587a4cbf53865d",
            "90420442f22fa870", "9985e8ae6679b0e2","CIMHPipe", "TheCodeMechanics", "Varuwa",
            "a0cf32754296214f","a25b8419335d2131","aa6aa366e9788967", "d5c8ed05b7af02a3",
@@ -60,7 +64,6 @@ diff_wave[diff_wave$id %in% V_IDs,2] <- diff_wave[diff_wave$id %in% V_IDs,2] * 1
 # scale continuous data
 ## --------------------
 # 
-
 continuous <- c(3, 7, 8, 13)
 
 #normalizing data
@@ -75,6 +78,7 @@ for (i in 1:length(continuous)) {
 # exclude variables that have high collinearity >0.6
 collinearity_indx <- match(c("ans_software_host","ans_hf_direction"), colnames(data_matched)) # 37
 
+
 data_reduced <- data_matched[,-collinearity_indx] 
 
 #find the ones above 0.6
@@ -83,8 +87,10 @@ all_cor <- model.matrix(~0+., data=data_reduced) %>%
 which(abs(all_cor)>0.6 & abs(all_cor)!=1, arr.ind=TRUE) # 
 
 #remove influential cases - see how we identified them below
-data_reduced <- data_reduced[c(-41, -69, -99 ),]
-diff_wave <- diff_wave[c(-41, -69, -99 ),]
+rownames(data_reduced) <- NULL
+
+data_reduced <- data_reduced[c( -25, -80, -91 ,-100),]#c(-25, -80, -91 ,-100)
+diff_wave <- diff_wave[c(-25, -80, -91 ,-100),]
 
 #change names
 colnames(data_reduced) <- c("software", "high-pass cutoff", "high-pass type", "reference", "sampling freq.",
@@ -137,7 +143,7 @@ ks.test(scale(resid),'pnorm') # not significant
 
 #Homoscedacisity - fine
 #install.packages(c("lmtest","sandwich"))
-bptest(stepwise_model)
+bptest(stepwise_model) # not ignificant
 
 # Plot the effects
 
