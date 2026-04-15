@@ -1,6 +1,6 @@
 # Many Pipelines, One Dataset: Code Written for the EEGManyPipelines Main Paper
 
-Here you can find the code used for the main EEGManyPipelines paper. 
+Here you can find the code used for the main EEGManyPipelines paper. The data curation code can be found here: https://github.com/EEGManyPipelines/Dataset_paper/tree/main
 
 The project is run by the current Steering Committee members (in alphabetical order): Johannes Algermissen, Niko A. Busch, Elena Cesnaite, Nastassja L. Fischer, Claudia Gianelli, Gustav Nilsonne, Annalisa Pascarella, Darinka Trübutschek, Mikkel C. Vinding, Andrea Vitale, and Yu-Fang Yang.
 
