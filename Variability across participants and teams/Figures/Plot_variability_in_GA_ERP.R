@@ -40,15 +40,23 @@ dev.off()
 
 
 ## -------------------------------------------------------- ##
-## CPz GA ERP for each subject ##
+## CPz GA ERP for each participant ##
 ## -------------------------------------------------------- ##
 #Load data
 GAERP_sbj <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/Variability results/GA_cpz_sbj_new.csv')
+
+#baseline correct (participant data was not baseline corrected in the matlab code, but team's data was, correct it here)
+# find time indices for the baseline window
+indx_baseline <- time <= 0
+mean_baseline <-rowMeans(GAERP_sbj[,indx_baseline], na.rm = TRUE)
+
+bs_cor_GAERP_sbj <- GAERP_sbj - mean_baseline
+
 nsbj <- 33
 long_time <- time %>% 
   pivot_longer(cols = c(1:205))
 
-long_data_subjects <- as.data.frame(GAERP_sbj) %>% 
+long_data_subjects <- as.data.frame(bs_cor_GAERP_sbj) %>% 
   pivot_longer(cols = c(1:205))
 long_data_subjects$time <-rep(long_time$value, times=33) 
 long_data_subjects$sbj <-rep(c(1:33), each=205) 
@@ -57,7 +65,7 @@ long_data_subjects$sbj <-rep(c(1:33), each=205)
 
 mycolors <- paletteer_c("ggthemes::Blue-Teal", 33)
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/GA_ERP_33sbj.png", units="in", width=4, height=3, res=300)
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/GA_ERP_33sbj_bs_cor.png", units="in", width=4, height=3, res=300)
 
 ggplot(long_data_subjects, aes(x=time, y=value, group=sbj, color=as.factor(sbj))) + 
   geom_line(linewidth=0.7, alpha = 0.5) + 
@@ -72,7 +80,7 @@ dev.off()
 
 ## -- Plot Variance -- ##
 # Calculate variance for each column (time point)
-variance_subject <- apply(GAERP_sbj, 2, var)
+variance_subject <- apply(bs_cor_GAERP_sbj, 2, var)
 variance_team <- apply(GAERP_data, 2, var, na.rm=T)
 
 plot_variance <- data.frame(
@@ -87,7 +95,7 @@ var_long <- pivot_longer(plot_variance,
 
 var_colors <- c("#327399FF","#A53C32FF")
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/GA_ERP_variance_lab.png", units="in", width=4, height=3, res=300)
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/GA_ERP_variance_lab_bs_cor.png", units="in", width=4, height=3, res=300)
 
 ggplot(var_long, aes(x=time, y=Value, group=Variance_across, color=as.factor(Variance_across))) + 
   geom_line(linewidth=0.7, alpha = 0.9) + 
