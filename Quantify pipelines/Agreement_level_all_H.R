@@ -13,11 +13,11 @@ script_dir  <- dirname(script_path)
 # Install the entropy package 
 #install.packages("entropy")
 library(ggplot2)
+library(ggpubr)
+library(svglite)
 library(entropy)
 library(tidyr)
 library(dplyr)
-#install.packages("survminer")
-library(survminer)
 
 # Loading the data
 data1 <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/all_var_AQ_h1_corrected.csv")
@@ -25,12 +25,12 @@ data2 <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main 
 data3 <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/all_var_AQ_h3a_corrected.csv')
   
 #take prepricessing steps only
-preprocess <- data1[,c(-1,-10,-11,-13:-20, -26:-33)]
+preprocess <- data1[,c(-1,-2,-10,-11,-13:-20, -24:-33)]
 
 #take H1 analysis steps
-h1_analysis <- data1[,c(-1:-9,-12,-19,-21:-33)]
-h2_analysis <- data2[,c(-1:-10,-20:-32)]
-h3_analysis <- data3[,c(-1:-16,-26:-32)]
+h1_analysis <- data1[,c(-1:-9,-12,-17:-19,-21:-33)]
+h2_analysis <- data2[,c(-1:-10,-13,-14,-20:-32)]
+h3_analysis <- data3[,c(-1:-16,-19,-20,-26:-32)]
 
 hypotheses <- c("h1_analysis","h2_analysis","h3_analysis")
 
@@ -46,13 +46,13 @@ for (ei in 1:length(encoded_data_preproc)){
     entropy_out_preproc[ei] <- entropy_one/log2(nrow(table(encoded_data_preproc[ei])))
 }
 
-# Calculate rpobabilities for each variable each list
+# Calculate probabilities for each variable each list
 plot_entropy_process <- as.data.frame(entropy_out_preproc)
 
 #for preprocessing
-plot_entropy_process$class <- c("software", "software host", "high-pass cutoff", "high-pass type", "high-pass direction","reference", 
+plot_entropy_process$class <- c("software", "high-pass cutoff", "high-pass type", "high-pass direction","reference", 
                         "sampling freq.", "excl. participants", "segment excl.crit.", 
-                        "ICA algorithm", "visual bad comp.sel.", "plugin bad comp.sel.", "baseline start", "baseline stop")
+                        "ICA algorithm", "visual bad comp.sel.", "plugin bad comp.sel.")
 
 #order based on the values
 # Order by value
@@ -60,7 +60,7 @@ plot_entropy_process$class <- c("software", "software host", "high-pass cutoff",
 plot_entropy <- plot_entropy_process[order(plot_entropy_process$entropy_out_preproc, decreasing = TRUE), ]
 
 #plot preprocessing
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/entropy preprocess wl.png", units="in", width=7.5, height=6, res=300)
+svglite('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/entropy preprocess wl.svg', width=7.5, height=5)
 
 # Higher entropy value indicates a more random/uncertain distribution. A lower value indicates more deterministic, predictable distribution 
 par(mar = c(2,15,2,2)) # Set the margin on all sides to 2
@@ -93,12 +93,12 @@ for (i in 1:3){
       #for h1 analysis
       plot_entropy_analyse$class <- c("topographic region", "nr.channels", "mult.comp.method", "stat.method", 
                               "spatial avg.","mult.comp.correction", 
-                              "time win.start", "time win.end", "temporal avg.")
+                              "temporal avg.")
     }  else{
       
       #for h2a + h3a analysis
       plot_entropy_analyse2 <- as.data.frame(entropy_out)
-      plot_entropy_analyse2$class <- c("nr.channels", "topographic region", "time win.start", "time win.end",
+      plot_entropy_analyse2$class <- c("nr.channels", "topographic region",
                               "stat.method", "mult.comp.correction", "mult.comp.method",
                               "temporal avg.","spatial avg.")
       plot_entropy_analyse <- merge(plot_entropy_analyse, plot_entropy_analyse2, by= "class") 
@@ -143,8 +143,7 @@ p3 <- long_analysis_entropy %>%
 
 ggarrange(p1,p2,p3,nrow = 3,ncol = 1) #nrow & ncol depend on how you want to 
 
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/entropy analysis wl 3H.png", 
-     units="in", width=6.5, height=3.8, res=300)
+svglite('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/entropy analysis wl 3H.svg', width=6.5, height=3.5)
 
 ggplot(long_analysis_entropy,
        aes(x = reorder(class, -value),

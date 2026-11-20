@@ -28,12 +28,10 @@ class(h2a_data$pval)
 #hist(qnorm(h2a_data$pval))
 data$pval <- qnorm(h2a_data$pval)#qnorm(0.975,mean=0,sd=1)
 
-
 ## --------------------
 # scale continuous data
 ## --------------------
 # 
-
 continuous <- c(3, 7, 8,9, 20)
 
 #normalizing data
@@ -42,6 +40,25 @@ for (i in 1:length(continuous)) {
   data[,continuous[i]] <- as.numeric(scale(contin_data_col))
   #hist(scale(contin_data_col))
 }
+
+# transform 'other' responses to 'unknown'
+data[] <- lapply(data, function(col) {
+  if (is.factor(col)) {
+    col <- as.character(col)
+    col[col %in% "other"] <- "unknown"
+    factor(col)
+  } else if (is.character(col)) {
+    col[col %in% "other"] <- "unknown"
+    col
+  } else {
+    col
+  }
+})
+
+#check for single categorical values in the data
+sapply(data[sapply(data, is.factor) | sapply(data, is.character)],
+       function(x) sum(table(x) == 1))
+data$ans_hf_direction[data$ans_hf_direction=='fwr_bwd'] <- 'fwd_bwd'
 
 ## ------------------------------------------------------------------------------------
 
@@ -73,12 +90,12 @@ colnames(data_reduced) <- c("software", "high-pass cutoff", "high-pass type", "r
 #Approach 1. Using the step function.
 #Checking different models using the step function. 
 fullmodel_h2a<- lm(pval~ . , data = data_reduced)
-summary(fullmodel)
-car::vif(fullmodel)
+summary(fullmodel_h2a)
+car::vif(fullmodel_h2a)
 
 # Stepwise model
 library(MASS)
-stepwise_model <- stepAIC(fullmodel, direction = "both", trace = T, k = log(nrow(data_reduced)))
+stepwise_model <- stepAIC(fullmodel_h2a, direction = "both", trace = T, k = log(nrow(data_reduced)))
 summary(stepwise_model)
 
 

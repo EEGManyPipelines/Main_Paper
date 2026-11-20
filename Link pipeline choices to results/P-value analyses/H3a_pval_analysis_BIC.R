@@ -42,6 +42,25 @@ for (i in 1:length(continuous)) {
   #hist(scale(contin_data_col))
 }
 
+# replace every "other" with "unknown" in the whole data frame
+data[] <- lapply(data, function(col) {
+  if (is.factor(col)) {
+    col <- as.character(col)
+    col[col %in% "other"] <- "unknown"
+    factor(col)
+  } else if (is.character(col)) {
+    col[col %in% "other"] <- "unknown"
+    col
+  } else {
+    col
+  }
+})
+
+#identify and remove individual cases from categorical varaibles
+sapply(data[sapply(data, is.factor) | sapply(data, is.character)],
+       function(x) sum(table(x) == 1))
+data$ans_hf_direction[data$ans_hf_direction=='fwr_bwd'] <- 'fwd_bwd'
+
 ## ------------------------------------------------------------------------------------
 
 # exclude variables that have high collinearity >0.6

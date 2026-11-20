@@ -35,7 +35,9 @@ for (i in 1:length(continuous)) {
 
 ## ------------------------------------------------------------------------------------
 ## Load time-series data
-EEG <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/h2a_difference_wave_front_tw_v2.csv')
+EEG <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/h2a_difference_wave_front_tw_v2_081026.csv')
+
+EEG <- EEG[-which(is.na(EEG$DW)),]
 EEG_ID <- EEG$ID
 
 indx <- pipe_ID %in% EEG_ID
@@ -49,6 +51,7 @@ EEG_ID[EEG_ID=='ChileMaule'] <- 'Chile Maule'
 EEG_ID[EEG_ID=='CognitiveSystems_KU'] <- 'CognitiveSystems-KU'
 EEG_ID[EEG_ID=='TMS_EEG_DREAM'] <- 'TMS-EEG-DREAM'
 EEG_ID[EEG_ID=='TheCodeMechanics']<-  'The Code Mechanics'
+EEG_ID[EEG_ID=='KaiserSoze']<-  'Kaiser Soze'
 
 indx <- pipe_ID %in% EEG_ID
 sum(indx)
@@ -63,21 +66,32 @@ all.equal(pipe_ID_reduced[pl_indx], EEG_ID)
 data_reduced <- data_reduced[pl_indx,]
 data_plot <- data_plot[pl_indx,]
 
+boxplot(EEG$DW)
+
 #inspect dependent variable
 #boxplot(EEG$DW)
 data_reduced$diffwave <- EEG$DW
 data_plot$diffwave <- EEG$DW
 
-## --------------------
-# look if there are any NaN values
-## --------------------
-# 
-empty_row <- which(is.na(data_reduced),arr.ind=TRUE) # 
-indx_row <- empty_row[,1]#
-# Caution: remove them from the dataset
-data_reduced <- data_reduced[-indx_row,]
-data_plot <- data_plot[-indx_row,]
+# replace every "other" with "unknown" in the whole data frame
+data_reduced[] <- lapply(data_reduced, function(col) {
+  if (is.factor(col)) {
+    col <- as.character(col)
+    col[col %in% "other"] <- "unknown"
+    factor(col)
+  } else if (is.character(col)) {
+    col[col %in% "other"] <- "unknown"
+    col
+  } else {
+    col
+  }
+})
 
+#identify and remove individual cases from categorical varaibles
+sapply(data_reduced[sapply(data_reduced, is.factor) | sapply(data_reduced, is.character)],
+       function(x) sum(table(x) == 1))
+table(data_reduced$software)
+data_reduced$ans_hf_direction[data_reduced$ans_hf_direction=='fwr_bwd'] <- 'fwd_bwd'
 
 ## ------------------------------------------------------------------------------------
 
@@ -88,7 +102,9 @@ data_reduced <- data_reduced[,-collinearity_indx]
 rownames(data_reduced) <- NULL
 
 #remove influential cases based on Cook's distance and homoscedasticity
-data_reduced <- data_reduced[c(-21,-19,-23),]
+data_reduced <- data_reduced[c(-24,-28),]
+rownames(data_reduced) <- NULL
+
 
 #correct the names
 colnames(data_reduced) <- c("software", "high-pass cutoff", "high-pass type", "high-pass dir.",
@@ -107,6 +123,14 @@ car::vif(fullmodel_h2a)
 stepwise_model <- stepAIC(fullmodel_h2a, direction = "both", trace = T, k = log(nrow(data_reduced)))
 summary(stepwise_model)
 summ(stepwise_model, confint = TRUE, digits = 4) # nicer vizualisation
+confint(stepwise_model)
+
+# Take POz reference as a scheme to compare the other two to
+data_reduced$reference <- relevel(factor(data_reduced$reference), ref = "original")
+m2 <- lm(diffwave ~ `high-pass cutoff` + reference, data = data_reduced)
+summary(m2)   # "referencemastoid" is now mastoid vs. POz
+confint(m2)
+
 # Check for individual influential cases
 
 studres <- rstudent(stepwise_model)
@@ -142,71 +166,14 @@ ks.test(scale(resid),'pnorm') # significant  - correct it below with robus SE
 bptest(stepwise_model) #p-value = 0.02491 suggests homoscedasticity
 
 #Fix by performing robust covariance estimators
-robust_se <- coeftest(stepwise_model,vcov=vcovHC(stepwise_model, type="HC3")) # still one outlier remaining
+robust_se <- coeftest(stepwise_model,vcov=vcovHC(stepwise_model, type="HC3")) 
 robust_se
 confint(robust_se)
 
-#find the observation that doesn't converge
-## 1) Find extreme leverage (hat) values
-h <- hatvalues(stepwise_model)
-
-# any with h extremely close to 1?
-bad_hat_idx <- which(h > 1 - 1e-8)                 # e.g., 0.99999999+
-bad_hat_idx
 
 # check all plots
 par(mfrow=c(2,2))
 plot(stepwise_model)
 par(mfrow=c(1,1))
 
-##--- PLOT SIGNIFICANT PREDICTORS ----#
-#
-# plot the reference channel and the high pass filter cutoff
-library(ggplot2)
 
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/hf_diff_wave_plot_h2a.png", units="in", width=4, height=3, res=100)
-
-ggplot(data=data_plot, aes(x=hf_cutoff, y=diffwave))+
-  geom_point(size=2, alpha = 0.5)+
-  geom_smooth(method= "lm", colour = "grey")+
-  theme_minimal()+ theme(text = element_text(size=20))+
-  ylab("diff. wave")+
-  xlab("hf cutoff")
-dev.off()
-
-# reference
-# split based on ref
-plot_data_ref <- as.data.frame(data_reduced$reref)
-plot_data_ref$diffwave <- data_reduced$diffwave
-plot_data_ref$CorBRej <- data_reduced$CorrectionBeforeRejection
-colnames(plot_data_ref) <- c('ref','diffwave',"correj")
-plot_data_ref$ref[plot_data_ref$ref=='other'] <- 'unknown'
-#indx_rm_unknown <- which(plot_data_ref$ref=='unknown')
-#plot_data_ref <- plot_data_ref[-indx_rm_unknown,]
-plot_data_ref$ref[plot_data_ref$ref=="avg"] <- "average"
-plot_data_ref$ref[plot_data_ref$ref=="original"] <- "POz"
-
-colors <- c("#E69F00","#56B4E9","#009E73", "grey")
-
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/ref_diff_wave_plot_h2a.png", units="in", width=3, height=2, res=100)
-
-ggplot(plot_data_ref, aes(x=ref, y=diffwave, fill=diffwave)) + 
-  geom_violin(trim=FALSE)+
-  geom_boxplot(width=0.1, fill="white")+
-  theme_classic()+ 
-  theme(text = element_text(size=20), axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
-  ylab("diff. wave")+
-  xlab("reference")
-
-dev.off()  
-
-  
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/order_diff_wave_plot_h2a.png", units="in", width=3, height=3.5, res=100)
-
-ggplot(plot_data_ref, aes(x=correj, y=diffwave)) + 
-  geom_boxplot()+
-  theme_minimal()+ theme(text = element_text(size=20))+
-  ylab("diff. wave")+
-  xlab("Cor. before. rej")
-
-dev.off() 

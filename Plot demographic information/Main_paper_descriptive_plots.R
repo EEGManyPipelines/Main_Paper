@@ -7,6 +7,8 @@ library(RColorBrewer)
 library(stringr)
 library(readr)
 library(paletteer)
+library(ggdist)
+
 
 ##---------- EEG years, papers, seniority ----------------## 
 #load data
@@ -45,7 +47,8 @@ plot_data <- plot_data %>%
 # The colors
 BLUE <- "#0072B2"
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/Job_position.png", width = 1200, height = 400, res = 200)
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/Job_position.png", 
+    width = 1200, height = 400, res = 200)
 
 ggplot(plot_data, aes(forcats::fct_reorder(Var1, Freq), Freq)) +
   geom_col(fill = BLUE, width = 0.6)  +
@@ -59,6 +62,37 @@ ggplot(plot_data, aes(forcats::fct_reorder(Var1, Freq), Freq)) +
 
 dev.off()
 
+#EEG expertise
+prior <- read.csv('/Users/ecesnaite/Downloads/Prior_and_posterior_beliefs/manypipelines_table_prior_questionnaire_cleaned.csv')
+
+#match team identifiers
+indx_team_rm <- which(prior$team_identifier == "533a774ad52b0453")
+prior <- prior[-indx_team_rm,]
+
+#plot expertise
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/ERP_expertise.png", 
+    width = 900, height = 400, res = 200)
+
+ggplot(prior, aes(x = 1, y = expertise_eeg_erp)) +
+  # half-violin (density)
+  stat_halfeye(adjust = 0.5, width = 0.6,
+               justification = -0.2, .width = 0, point_colour = NA,aes(x = 1),
+               fill = "steelblue",alpha = 0.85) +
+  # boxplot
+  geom_boxplot(width = 0.12,outlier.shape = NA,alpha = 0.5, aes(x = 0.9)) +
+  # individual data points
+  geom_jitter(width = 0.05,alpha = 0.4, size = 2, aes(x = 0.7)) +
+  coord_flip() +
+  scale_y_continuous(limits = c(0, 100), breaks = seq(0, 100, 20)) +
+  labs(y = "Self-reported ERP expertise (0–100)") +
+  theme_minimal(base_size = 19) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+dev.off()
+
 #EEG years
 plot_data_years <- as.data.frame(data$eeg_years)
 plot_data_years$group <- NaN
@@ -68,6 +102,13 @@ plot_data_years$group[plot_data_years$`data$eeg_years`>6 & plot_data_years$`data
 plot_data_years$group[plot_data_years$`data$eeg_years`>10 ] <- 'more than 10'
 
 plot_data_years_class <- as.data.frame(table(plot_data_years$group))
+
+plot_data_years_class$Var1 <- factor(plot_data_years_class$Var1, levels = c("less than 3",
+                                                                            "3-6 years", "7-10 years",
+                                                                            "more than 10"))
+plot_data_years_class <- plot_data_years_class %>%
+  arrange(Var1)
+
 plot_data_years_class$percent <- as.character(paste0(round(plot_data_years_class$Freq/396*100, 1), '%')) # to percentage
 
 # You can change the border of each area with the classical parameters:
@@ -82,7 +123,7 @@ RColorBrewer::brewer.pal(8, "YlGnBu")
 
 myPalette <- c("#7FCDBB", "#41B6C4", "#1D91C0", "#225EA8" )
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/EEG_years.png", width = 1200, height = 800, res = 200)
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/EEG_years.png", width = 1200, height = 700, res = 200)
 
 ggplot(plot_data_years_class, aes(x="", y=prop, fill=Var1)) +
   geom_bar(stat="identity", width=1, color="white") +
@@ -167,7 +208,7 @@ dev.off()
 
 #paletteer_c("ggthemes::Blue-Green Sequential", 20)
 #myPalette <- c("#E7F6B7FF", "#E1F4B3FF", "#D9F1B2FF", "#C8EBB1FF", "#BDE7B2FF","#AEE0B4FF", "#9FDAB6FF",
-  "#90D4B8FF", "#83CFBAFF","#5CC0C0FF", "#50BBC2FF","#41B7C4FF")
+ # "#90D4B8FF", "#83CFBAFF","#5CC0C0FF", "#50BBC2FF","#41B7C4FF")
 #myPalette <- paletteer_c("grDevices::Cold", 11)
 
 ## TOPICS ##
@@ -226,14 +267,19 @@ plot_data_topics <- plot_data_topics %>%
 # The colors
 BLUE <- "#0072B2"
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/topics.png", width = 1200, height = 800, res = 200)
+png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/Papers/Main paper/Figures/topics.png", width = 1200,
+    height = 900, res = 200)
 
 ggplot(plot_data_topics, aes(forcats::fct_reorder(Var1, Freq), Freq)) +
   geom_col(fill = BLUE, width = 0.6)  +
+  geom_text(aes(label = forcats::fct_reorder(percent,Freq)), 
+            ## make labels left-aligned
+            hjust = -0.2, nudge_x = 0)+
   coord_flip() +
-  theme(panel.background = element_blank(),
-        axis.text=element_text(size=12),
-        axis.title.y = element_blank()) + ylim(0,80) + ylab("Number of teams")
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+      panel.background = element_blank(),axis.title.x=element_blank(),axis.text=element_text(size=12),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(), axis.title.y = element_blank()) + ylim(0,100)
 
 dev.off()
 

@@ -5,6 +5,7 @@ rm(list = ls())
 library(markovchain) 
 library(tidyverse)
 library(reshape2)
+library(svglite)
 
 # Load data
 order_script <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/script_order_168_cor_filt.csv", sep=",")
@@ -52,7 +53,8 @@ mcFit$estimate@transitionMatrix[mcFit$estimate@transitionMatrix<0.1] <- 0
 longData<-melt(trans_mat)
 
 #plot
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/transitionMatrix_order_steps.png", units="in", width=7.7, height=5.5, res=300)
+svglite("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/transitionMatrix_order_steps.svg",
+        width=7.7, height=5.5)
 par( cex = 2)
 ggplot(longData, aes(x = Var2, y = Var1)) + 
   geom_raster(aes(fill=value)) + 
@@ -92,8 +94,6 @@ for (val in 1:nrow(data_reverse)){
 
 # find a pipeline with the highest transition probability score
 which(team_score==max(team_score)) #two teams have an identical order of steps, use one team's data
-data_reverse_df[99,]
-data_reverse_df[48,]
 
 #plot
 

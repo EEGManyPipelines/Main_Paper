@@ -48,6 +48,24 @@ for (i in 1:length(continuous)) {
   data[,continuous[i]] <- as.numeric(scale(contin_data_col))
   #hist(scale(contin_data_col))
 }
+# transform 'other' responses to 'unknown'
+data[] <- lapply(data, function(col) {
+  if (is.factor(col)) {
+    col <- as.character(col)
+    col[col %in% "other"] <- "unknown"
+    factor(col)
+  } else if (is.character(col)) {
+    col[col %in% "other"] <- "unknown"
+    col
+  } else {
+    col
+  }
+})
+
+#check for single categorical values in the data
+sapply(data[sapply(data, is.factor) | sapply(data, is.character)],
+       function(x) sum(table(x) == 1))
+data$ans_hf_direction[data$ans_hf_direction=='fwr_bwd'] <- 'fwd_bwd'
 
 #---------------------------------------------------------------------------------------------------------------------------
 
@@ -93,6 +111,7 @@ winmodel <- lm(pval_med ~ `nr. channels`+`bs.window length`+mult.comp.cor.+
                  `bs.window length`*mult.comp.cor. + `nr. channels`*mult.comp.cor., data=data_reduced)
 summary(winmodel)
 summ(winmodel, confint = TRUE, digits = 4) # nicer vizualisation
+confint(winmodel)
 
 # Check assumptions #
 studres <- rstudent(stepwise_model)
@@ -123,9 +142,9 @@ shapiro.test(resid) # normal residuals
 # kolmogorov-smirnov test
 ks.test(scale(resid),'pnorm') # not significant - therefore it's ok
 
-#Homoscedacisity - does not meet expectations
+#heteroscedasticity - does not meet expectations
 
-bptest(stepwise_model) #p-value = 0.0029 suggests homoscedasticity
+bptest(stepwise_model) #p-value = 0.0029 suggests heteroscedasticity
 
 #Fix by performing robust covariance estimators
 robust_se <- coeftest(stepwise_model,vcov=vcovHC(stepwise_model, type="HC3")) # 
@@ -139,69 +158,4 @@ confint(interaction_robust_se)
 par(mfrow=c(2,2))
 plot(stepwise_model)
 par(mfrow=c(1,1))
-
-#-- PLOT EFFECTS --#
-#Interaction
-ggplot(data=data_reduced, aes(x=`bs.window length`, y=pval_med, group=mult.comp.cor.))+
-  geom_point(size=2, aes(color=mult.comp.cor.))+
-  geom_smooth(method= "lm")+
-  ylab("qnorm(pval)")+
-  xlab("baseline start")+
-  ggtitle("Interaction effect")
-
-# with original values
-
-#h1_data$pval_med <- pvalM#qnorm(0.975,mean=0,sd=1)
-h1_data$ans_mt_h1 <- factor(h1_data$ans_mt_h1, levels = c(0, 1), labels = c("no","yes"))
-
-empty_row_2 <- which(is.na(h1_data),arr.ind=TRUE) # 
-indx_row2 <- empty_row_2[,1]
-# Caution: remove them from the dataset
-h1_data <- h1_data[-indx_row2,]
-
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/h1_interaction_baseline_mc.png", units="in", width=7, height=4, res=300)
-
-ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval_med), group=ans_mt_h1 ))+
-  geom_point(size=4, aes(color=ans_mt_h1), alpha = 0.5)+
-  geom_smooth(method= "lm", color = "grey")+
-  scale_color_manual(values = c("#00AFBB", "#E7B800"))+
-  theme_minimal()+ labs(x = "baseline length(ms)",y="qnorm(pval)",color = "cor.mult.com.")+
-  theme(text = element_text(size=25), )
-
-dev.off()
-
-
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/h1_nr_chan.png", units="in", width=4.5, height=3.5, res=300)
-
-ggplot(data=h1_data, aes(x=nr_chan_h1, y=qnorm(pval_med)))+
-  geom_point(size=4, alpha = 0.5, colour="chocolate")+
-  geom_smooth(method= "lm", color = "grey")+
-  theme_minimal()+ labs(x = "nr. channels",y="qnorm(pval)")+
-  theme(text = element_text(size=25), )
-
-dev.off()
-
-# with permutation vs not
-
-ggplot(data=h1_data, aes(x=bs_window_length, y=qnorm(pval_med), group=ans_mt_h1 ))+
-  geom_point(size=4, aes(color=ans_mt_h1, shape = mc_method_h1), alpha = 0.5)+
-  geom_smooth(method= "lm")+
-  scale_shape_manual(values = c(16,17)) +
-  scale_color_manual(values = c("#00AFBB", "#E7B800"))+
-  theme_minimal()+
-  ylab("qnorm(pval)")+
-  xlab("baseline length(ms)")+
-  ggtitle("Interaction effect")+ theme(text = element_text(size=15))
-
-
-# check if outlier cases innfluence the result
-rm <- which(data_reduced$`bs.window length`>2.5)
-data_reduced2 <- data_reduced[-rm,]
-winmodel2 <- lm(pval_med ~ `nr. channels`+`bs.window length`+mult.comp.cor.+
-                 `bs.window length`*mult.comp.cor. + `nr. channels`*mult.comp.cor., data=data_reduced2)
-summary(winmodel2)
-summ(winmodel2, confint = TRUE, digits = 4) # nicer vizualisation
-
-
-
 

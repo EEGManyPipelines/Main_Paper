@@ -1,305 +1,172 @@
-## Correlate with unusualness of difference waves ## 
-## --------------------
-# Correlated mean difference waves of 3 hypotheses with Levenstein distance in a loop
-## --------------------
-# 
-
 rm(list = ls())
 
 library(R.matlab)
-library(paletteer)
-library(RColorBrewer)
 library(tidyverse)
-library(ggplot2)
 
-# To color code difference waves based on the high-pass or reference? 'ref' or 'hf' or 'bad_cmp'
-color_value <- c('ref')
-outName <- c(paste0("avg_diff_wave_H1_",color_value,".png"), paste0("avg_diff_wave_H2a_",color_value,".png"),
-             paste0("avg_diff_wave_H3a_Fz_",color_value,".png"), paste0("avg_diff_wave_H3a_Pz_",color_value,".png"))
-stim_y_coord <- c(0.8,-0.5,-1)#for reference channel: c(0.8,-0.5,-1)#  # for other: c(0.3,-0.25,-0.5)
+# Mean difference waves split by a pipeline choice, standardized over reference schemes.
+# For 'cor_rej', 'bad_cmp' and 'hf': group means are computed WITHIN each reference scheme and
+# then averaged across schemes with the SAME weights for both groups
+# Only schemes containing both groups are used.
+# For 'ref': plain mean difference wave per reference scheme (no adjustment).
+
+# Which variables to plot? any of 'ref', 'cor_rej', 'bad_cmp', 'hf'
+color_values <- c('ref')
+
+stim_y_coord <- c(0.3,-0.25,-0.5,-0.5)  # for reference channel: c(0.8,-0.5,-1, -1)
+hyp_name <- c("H1", "H2a", "H3a_Fz", "H3a_Pz")
 
 #Load data
-# Mean difference wave
 # set paths
 inDir <- '/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/for plotting/FINAL 3 H difference wave plotting/'
+outDir <- "/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/"
 
-all_amp <- c('H1_amplitude.mat','H2a_amplitude_v2.mat','H3a_amplitude_reversed_Fz.mat', 'H3a_amplitude_reversed_Pz.mat')
-all_time <- c('H1_time_xaxis.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat','H3a_time_xaxis.mat')
-all_IDs <- c('IDs_h1_diff_wave.mat','IDs_h2a_diff_wave.mat', 'IDs_h3a_diff_wave.mat', 'IDs_h3a_diff_wave.mat')
+all_amp <- c('H1_amplitude_v2_2.mat','H2a_amplitude_v2_2.mat','H3a_amplitude_Fz_2.mat','H3a_amplitude_Pz_2.mat')
+all_time <- c('H1_time_xaxis_2.mat','H2a_time_xaxis.mat','H3a_time_xaxis.mat','H3a_time_xaxis.mat')
+all_IDs <- c('IDs_h1_diff_wave_2.mat','IDs_h2a_diff_wave_2.mat', 'IDs_h3a_diff_wave_2.mat', 'IDs_h3a_diff_wave_2.mat')
 
-in_amp_name <- c('all.y','amp.h2a','amp.h3a','amp.h3a')
-in_time_name <- c('time.x','time.h2a', 'time.h3a', 'time.h3a')
-in_ID_name <- c('IDs.H1','IDs.h2a','IDs.h3a','IDs.h3a')
+in_amp_name <- c('amp.h1','amp.h2a','amp.h3a','amp.h3a')
+in_time_name <- c('time.h1','time.h2a', 'time.h3a', 'time.h3a')
+in_ID_name <- c('IDs','IDs.h2a','IDs.h3a','IDs.h3a')
 
 xmin_rect <- c(80, 300, 300, 300)
 xmax_rect <- c(120, 500, 500, 500)
 
-# reference channel
+# team-level info (kept untouched; subsets are made inside the loop)
 AQ_data <- read.csv('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/all_var_AQ_h1_corrected.csv')
-ref <- AQ_data$reref
-ref[ref=="other"] <- "unknown"
-
-#high-pass cutoff
-hf <- AQ_data$hf_cutoff
-
-#correct values based on other hypothesis reports for ERP hypotheses
-ref[42] <- "mastoid"
-
-# component plugin
-bad_cmp <- AQ_data$ans_bad_comp_sel_plugin
-
 AQ_ID <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/IDs_linear_models.csv")
-outDir <- "/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/"
+
+ref_all     <- as.character(AQ_data$reref)
+ref_all[ref_all=="original"] <- "POz"
+cor_rej_all <- ifelse(as.logical(AQ_data$CorrectionBeforeRejection), "yes", "no")
+bad_cmp_all <- ifelse(as.logical(AQ_data$ans_bad_comp_sel_plugin), "yes", "no")
+hf_all      <- ifelse(as.numeric(AQ_data$hf_cutoff) <= 0.1, "<=0.1", ">0.1")
+
+ref_schemes <- c("avg", "POz", "mastoid")
+
+# settings per variable: grouping vector, legend title, plot title, group levels and colours
+settings <- list(
+  cor_rej = list(group = cor_rej_all, legend = "corr.bef.rej.", title = "Correction before rejection",
+                 levels = c("no", "yes"), pal = c(no = "#0072B2", yes = "#D55E00")),
+  bad_cmp = list(group = bad_cmp_all, legend = "plugin use", title = "Component plugin use",
+                 levels = c("no", "yes"), pal = c(no = "#7876B1", yes = "#20854E")),
+  hf      = list(group = hf_all, legend = "hp.cutoff", title = "High-pass filter cutoff",
+                 levels = c("<=0.1", ">0.1"), pal = c("<=0.1" = "#E41A1C", ">0.1" = "#377EB8")),
+  ref     = list(group = ref_all, legend = "reference", title = "Reference choice",
+                 levels = ref_schemes, pal = c(avg = "#E69F00", POz = "#56B4E9", mastoid = "#009E73"))
+)
+
+# team names that differ between the .mat files and the ID file
+id_fix <- c("TheCodeMechanics"    = "The Code Mechanics",
+            "19068f1fe266c5e1_1"  = "19068f1fe266c5e1",
+            "356c77bfd2662b9a_H1" = "356c77bfd2662b9a",
+            "ChileMaule"          = "Chile Maule",
+            "CognitiveSystems_KU" = "CognitiveSystems-KU",
+            "TMS_EEG_DREAM"       = "TMS-EEG-DREAM",
+            "TheHanncanny"        = "The Hanncanny",
+            "KaiserSoze"          = "Kaiser Soze")
+
+# mean and squared SE across teams (columns) for every time point
+group_stats <- function(sub) {
+  data.frame(m   = rowMeans(sub, na.rm = TRUE),
+             se2 = apply(sub, 1, var, na.rm = TRUE) / rowSums(!is.na(sub)))  # NA if only 1 team
+}
 
 for (i in c(1:4)) {
   
   # read in our data
   amp <- readMat(paste0(inDir,all_amp[i]))
-  amp <- eval(parse(text=paste0('amp$',in_amp_name[i])))  # rows are teams and columns are time points
+  amp <- as.matrix(amp[[in_amp_name[i]]])   # rows are time points and columns are teams
   
-  if (i==1) {
-    amp <- as.data.frame(t(amp))
-  } else{
-    amp <- as.data.frame(amp)
-  }
+  time_vec <- as.numeric(unlist(readMat(paste0(inDir,all_time[i]))[[in_time_name[i]]]))
   
-  #find outliers and remove them: 3*IQR
-  mean_wave_amp <- colMeans(amp, na.rm = T)
-  qnt <- quantile(mean_wave_amp, probs=c(.25, .75), na.rm = T)
-  H <- 3 * IQR(mean_wave_amp, na.rm = T)
-  indx_rm <- c(which(mean_wave_amp < (qnt[1] - H)), which(mean_wave_amp > (qnt[2] + H)))
-  
-  
-  time <- readMat(paste0(inDir,all_time[i]))
-  time <- eval(parse(text=paste0('time$',in_time_name[i])))
-  
-  # 
-  ID_diff <- readMat(paste0(inDir,all_IDs[i]))
-  ID_diff <- unlist(eval(parse(text=paste0('ID_diff$',in_ID_name[i]))) )
-  
-  if (!is_empty(indx_rm)){
-    amp <- amp[,-indx_rm]
-    ID_diff <- ID_diff[-indx_rm]
-  }
-  
-  if (color_value=='ref'){
-    current_AQ <- ref
-  }else if (color_value=='bad_cmp'){
-    current_AQ <- bad_cmp
-  }else{
-    current_AQ <- hf
-  }
+  ID_diff <- unlist(readMat(paste0(inDir,all_IDs[i]))[[in_ID_name[i]]])
+  to_fix <- ID_diff %in% names(id_fix)
+  ID_diff[to_fix] <- id_fix[ID_diff[to_fix]]
   
   # Match ID
-  ID_AQ <- AQ_ID$teamID
-  loc <- match(ID_diff,ID_AQ, nomatch = 0)
-  setdiff(ID_diff,ID_AQ)
+  loc <- match(ID_diff, AQ_ID$teamID, nomatch = 0)
+  if (any(loc == 0)) stop(paste("IDs are not matching:", paste(ID_diff[loc == 0], collapse = ", ")))
   
-  if (i==1){
-    ID_diff[which(ID_diff %in% "TheCodeMechanics")] <- "The Code Mechanics"
-    ID_diff[which(ID_diff %in% "19068f1fe266c5e1_1")] <- "19068f1fe266c5e1"
-    ID_diff[which(ID_diff %in% "356c77bfd2662b9a_H1")] <- "356c77bfd2662b9a"
-    
-  }else {
-    ID_diff[which(ID_diff %in% "TheCodeMechanics")] <- "The Code Mechanics"
-    ID_diff[which(ID_diff %in% "19068f1fe266c5e1_1")] <- "19068f1fe266c5e1"
-    ID_diff[which(ID_diff %in% "ChileMaule")] <- "Chile Maule"
-    ID_diff[which(ID_diff %in% "CognitiveSystems_KU")] <- "CognitiveSystems-KU"
-    ID_diff[which(ID_diff %in% "TMS_EEG_DREAM")] <- "TMS-EEG-DREAM"
-    
-  } 
+  ref_i <- ref_all[loc]
   
-  loc <- match(ID_diff,ID_AQ, nomatch = 0)
-  ID_matched <- ID_AQ[loc]
-  
-  if (!identical(ID_matched, as.character(ID_diff))) stop("IDs are not matching")
-  
-  data_matched_AQ <- current_AQ[loc]
-  
-  # get mean difference waves
-  table(data_matched_AQ)
-  if (color_value=='ref'){
-    indx_unknown <- data_matched_AQ=="unknown"
+  for (color_value in color_values) {
     
-    #remove unknown
-    amp <- amp[,-which(indx_unknown)] 
-    data_matched_AQ <- data_matched_AQ[-which(indx_unknown)]
+    s <- settings[[color_value]]
+    grp_i <- s$group[loc]
     
-    #avg ref
-    indx_avg <- data_matched_AQ=="avg"
-    mean_amp_avg <- apply(amp[,which(indx_avg)], 1, function(x) median(x, na.rm = TRUE))
-    se_amp_avg <- apply(amp[,which(indx_avg)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-    # POz
-    indx_poz <- data_matched_AQ=="original"
-    mean_amp_poz <- apply(amp[,which(indx_poz)], 1, function(x) median(x, na.rm = TRUE))#rowMeans(amp[,which(indx_poz)], na.rm=T)
-    se_amp_poz <- apply(amp[,which(indx_poz)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
+    # keep only teams with a known reference scheme and a known group
+    keep <- ref_i %in% ref_schemes & grp_i %in% s$levels
+    amp_k <- amp[, keep, drop = FALSE]
+    ref_vec <- ref_i[keep]
+    grp_vec <- grp_i[keep]
     
-    #Mastoid
-    indx_mastoid <- data_matched_AQ=="mastoid"
-    mean_amp_mastoid <- apply(amp[,which(indx_mastoid)], 1, function(x) median(x, na.rm = TRUE))
-    se_amp_mastoid <- apply(amp[,which(indx_mastoid)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-    
-    
-    #join data
-    joint_for_amp <- data.frame(mean_amp_avg,mean_amp_poz,mean_amp_mastoid)
-    joint_for_se <- data.frame(se_amp_avg,se_amp_poz,se_amp_mastoid)
-    
-    # transform to long format
-    long_format_amp <- joint_for_amp %>% 
-      pivot_longer(cols = colnames(joint_for_amp), 
-                   names_to = "condition",
-                   values_to = "value")
-    long_format_se <- joint_for_se %>% 
-      pivot_longer(cols = colnames(joint_for_se), 
-                   names_to = "condition",
-                   values_to = "value")
-    joined_plotting <- cbind(long_format_amp,long_format_se)
-    # add time
-    joined_plotting$time <- rep(time, each = 3)
-    #add condition
-    if (i==1){
-      joined_plotting$color <- rep(c("avg","POz", "mastoid"), 151)
-    }else {
-      joined_plotting$color <- rep(c("avg","POz", "mastoid"), 205)
+    if (color_value == 'ref') {
+      
+      # plain mean difference wave per reference scheme
+      joined_plotting <- do.call(rbind, lapply(s$levels, function(g) {
+        st <- group_stats(amp_k[, grp_vec == g, drop = FALSE])
+        data.frame(group = g, time = time_vec, amp_value = st$m, se_value = sqrt(st$se2))
+      }))
+      subtitle <- NULL
+      
+    } else {
+      
+      # crosstab: which schemes contain both groups?
+      tab <- table(factor(ref_vec, levels = ref_schemes), factor(grp_vec, levels = s$levels))
+      cat("\n", hyp_name[i], "-", color_value, "\n"); print(tab)
+      shared <- rownames(tab)[apply(tab > 0, 1, all)]
+      if (length(shared) == 0) {
+        warning(paste(hyp_name[i], color_value, ": no reference scheme contains both groups - skipped"))
+        next
+      }
+      
+      # weights: total number of teams per scheme (same weights for both groups)
+      n_ref <- rowSums(tab)[shared]
+      w <- n_ref / sum(n_ref)
+      
+      # group mean and squared SE within each scheme
+      strat <- do.call(rbind, lapply(shared, function(r) {
+        do.call(rbind, lapply(s$levels, function(g) {
+          st <- group_stats(amp_k[, ref_vec == r & grp_vec == g, drop = FALSE])
+          data.frame(reference = r, group = g, time = time_vec,
+                     m = st$m, se2 = st$se2, w = as.numeric(w[r]))
+        }))
+      }))
+      
+      # standardized group waves
+      joined_plotting <- strat %>%
+        group_by(group, time) %>%
+        summarise(amp_value = sum(w * m),
+                  se_value  = sqrt(sum(w^2 * se2)),
+                  .groups = "drop")
+      subtitle <- paste0("standardized over reference")
     }
     
-  }else if (color_value=='bad_cmp'){
-    #calculate median amplitude for teams that used and did not use bad component selection plugin
-    indx_yes <- as.logical(data_matched_AQ)
-    indx_no <- !as.logical(data_matched_AQ)
+    joined_plotting$group <- factor(joined_plotting$group, levels = s$levels)
     
-    mean_amp_plugin <- apply(amp[,which(indx_yes)], 1, function(x) median(x, na.rm = TRUE))
-    se_amp_plugin <- apply(amp[,which(indx_yes)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-    
-    mean_amp_no_plugin <- apply(amp[,which(indx_no)], 1, function(x) median(x, na.rm = TRUE))
-    se_amp_no_plugin <- apply(amp[,which(indx_no)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-   
-     #join data
-    joint_for_amp <- data.frame(mean_amp_plugin,mean_amp_no_plugin)
-    joint_for_se <- data.frame(se_amp_plugin,se_amp_no_plugin)
-    
-    # transform to long format
-    long_format_amp <- joint_for_amp %>% 
-      pivot_longer(cols = colnames(joint_for_amp), 
-                   names_to = "condition",
-                   values_to = "value")
-    long_format_se <- joint_for_se %>% 
-      pivot_longer(cols = colnames(joint_for_se), 
-                   names_to = "condition",
-                   values_to = "value")
-    
-    joined_plotting <- cbind(long_format_amp,long_format_se)
-    
-    # add time
-    joined_plotting$time <- rep(time, each = 2)
-    
-    #add condition
-    if (i==1){
-      joined_plotting$color <- rep(c("yes","no"), 151) # hypothesis 1 has a shorter baseline length
-    }else {
-      joined_plotting$color <- rep(c("yes","no"), 205)
-    }
-    
-  }else{
-
-    #add amplitude
-    avg_below <- apply(amp[,which(data_matched_AQ<=0.1)], 1, function(x) median(x, na.rm = TRUE)) #rowMeans(amp[,which(data_matched_AQ<=0.1)], na.rm=T) 
-    se_below <- apply(amp[,which(data_matched_AQ<=0.1)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-    
-    avg_above <- apply(amp[,which(data_matched_AQ>0.1)], 1, function(x) median(x, na.rm = TRUE) )
-    se_above <- apply(amp[,which(data_matched_AQ>0.1)], 1, function(x) sd(x, na.rm = TRUE) / sqrt(sum(!is.na(x))))
-    #join data
-    joint_for_amp <- data.frame(avg_below,avg_above)
-    joint_for_se <- data.frame(se_below,se_above)
-    
-    # transform to long format
-    long_format_amp <- joint_for_amp %>% 
-      pivot_longer(cols = colnames(joint_for_amp), 
-                   names_to = "condition",
-                   values_to = "value")
-    long_format_se <- joint_for_se %>% 
-      pivot_longer(cols = colnames(joint_for_se), 
-                   names_to = "condition",
-                   values_to = "value")
-    joined_plotting <- cbind(long_format_amp,long_format_se)
-    
-    # add time
-    joined_plotting$time <- rep(time, each = 2)
-    #add condition
-    if (i==1){
-      joined_plotting$color <- rep(c('<=0.1','>0.1'), 151)
-    }else {
-      joined_plotting$color <- rep(c('<=0.1','>0.1'), 205)
-    }
-    
-  }
-  
-  
-  if (color_value=='ref'){
-    #change names
-    colnames(joined_plotting) <- c("amp_cond", "amp_value","se_cond", "se_value","time","reference")
     # Plot difference wave
-    p1 <- ggplot(joined_plotting, aes(x = time, y = amp_value, color = reference, group = reference)) +
-      geom_line(size = 1) +                                      # Line for mean amplitude
+    p1 <- ggplot(joined_plotting, aes(x = time, y = amp_value, color = group, group = group)) +
       geom_ribbon(aes(ymin = amp_value - se_value,      # Shaded SE area
                       ymax = amp_value + se_value,
-                      fill = reference), alpha = 0.3, color = NA) + 
-      scale_color_manual(values = c("#E69F00","#56B4E9","#009E73")) +        # Grey shades for ribbon fill
-      labs(x = "Time (ms)", y = "Amplitude (µV)", 
-           title = "Reference choice")  + theme_bw() +
-      theme(text = element_text(size = 20),legend.text = element_text(size = 15),     # legend labels
-            legend.title = element_text(size = 15,margin = margin(b = 10)) ) + 
-      geom_vline(xintercept = 0, linetype="dashed", color = "grey", size=1) +
-      geom_hline(yintercept = 0,color = "grey", size=0.5)+
-      annotate(geom="text",x=-30, y=stim_y_coord[i],
-               label="stimulus", color = "#696969",angle = 90, size =5) +
+                      fill = group), alpha = 0.3, color = NA) +
+      geom_line(linewidth = 1) +
+      scale_color_manual(values = s$pal) +
+      scale_fill_manual(values = s$pal) +
+      labs(x = "Time (ms)", y = "Amplitude (µV)", title = s$title, subtitle = subtitle,
+           color = s$legend, fill = s$legend) +
+      theme_bw() +
+      theme(text = element_text(size = 20), legend.text = element_text(size = 15),
+            legend.title = element_text(size = 15, margin = margin(b = 10)),
+            plot.subtitle = element_text(size = 12, colour = "grey30")) +
+      geom_vline(xintercept = 0, linetype = "dashed", color = "grey", linewidth = 1) +
+      geom_hline(yintercept = 0, color = "grey", linewidth = 0.5) +
+      annotate(geom = "text", x = -30, y = stim_y_coord[i],
+               label = "stimulus", color = "#696969", angle = 90, size = 5) +
       annotate("rect", xmin = xmin_rect[i], xmax = xmax_rect[i], ymin = -Inf, ymax = Inf, alpha = .1)
     
-  } else if (color_value=='bad_cmp'){
-    #change names
-    colnames(joined_plotting) <- c("amp_cond", "amp_value","se_cond", "se_value","time","plugin use")
-    # Plot difference wave
-    p1 <- ggplot(joined_plotting, aes(x = time, y = amp_value, color = `plugin use`, group = `plugin use`)) +
-      geom_line(size = 1) +                                      # Line for mean amplitude
-      geom_ribbon(aes(ymin = amp_value - se_value,      # Shaded SE area
-                      ymax = amp_value + se_value,
-                      fill = `plugin use`), alpha = 0.3, color = NA) + 
-      scale_color_manual(values = c("#7876B1", "#20854E")) + 
-      scale_fill_manual(values = c("#7876B1", "#20854E")) +# Grey shades for ribbon fill
-      labs(x = "Time (ms)", y = "Amplitude (µV)", 
-           title = "Component plugin use")  + theme_bw() +
-      theme(text = element_text(size = 20),legend.text = element_text(size = 15),     # legend labels
-            legend.title = element_text(size = 15,margin = margin(b = 10)) ) + 
-      geom_vline(xintercept = 0, linetype="dashed", color = "grey", size=1) +
-      geom_hline(yintercept = 0,color = "grey", size=0.5)+
-      annotate(geom="text",x=-30, y=stim_y_coord[i],
-               label="stimulus", color = "#696969",angle = 90, size =5) +
-      annotate("rect", xmin = xmin_rect[i], xmax = xmax_rect[i], ymin = -Inf, ymax = Inf, alpha = .1) 
-  }else{
-    #change names
-    colnames(joined_plotting) <- c("amp_cond", "amp_value","se_cond", "se_value","time","hp.cutoff")
-    # Plot difference wave
-     #"#E69F00", "#56B4E9", "#009E73","#E41A1C" "#377EB8" "#4DAF4A" "#AF46B4"
-    p1 <- ggplot(joined_plotting, aes(x = time, y = amp_value, color = hp.cutoff, group = hp.cutoff)) +
-      geom_line(size = 1) +                                      # Line for mean amplitude
-      geom_ribbon(aes(ymin = amp_value - se_value,      # Shaded SE area
-                      ymax = amp_value + se_value,
-                      fill = hp.cutoff), alpha = 0.3, color = NA) + 
-      scale_color_manual(values = c("#E41A1C", "#377EB8")) + 
-      scale_fill_manual(values = c("#E41A1C", "#377EB8"))+# Grey shades for ribbon fill
-      labs(x = "Time (ms)", y = "Amplitude (µV)", 
-           title = "High-pass filter cutoff")  + theme_bw() +
-      theme(text = element_text(size = 20),legend.text = element_text(size = 15),     # legend labels
-            legend.title = element_text(size = 15,margin = margin(b = 10)) ) + 
-     # scale_y_continuous(breaks = seq(-0.6, 0.5, by = 0.2),
-                  #       labels = function(x) round(x, 1))+
-      geom_vline(xintercept = 0, linetype="dashed", color = "grey", size=1) +
-      geom_hline(yintercept = 0,color = "grey", size=0.5)+
-      annotate(geom="text",x=-30, y=stim_y_coord[i],
-               label="stimulus", color = "#696969",angle = 90, size =5) +
-      annotate("rect", xmin = xmin_rect[i], xmax = xmax_rect[i], ymin = -Inf, ymax = Inf, alpha = .1) 
+    print(p1)
+    ggsave(p1, file = paste0(outDir, "avg_diff_wave_", hyp_name[i], "_", color_value,
+                             ifelse(color_value == 'ref', "", "_refadj"), ".png"),
+           width = 6.5, height = 3.8, units = "in")
   }
-  
-    ggsave(p1, file=paste0(outDir,outName[i]), width=6.5, height=3.8, units = "in")
-  
 }

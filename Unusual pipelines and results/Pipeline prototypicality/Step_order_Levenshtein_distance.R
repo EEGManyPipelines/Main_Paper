@@ -6,6 +6,7 @@ library(stringdist)
 library(tidyverse)
 library(reshape2)
 library(ggExtra)
+library(svglite)
 
 order_script <- read.csv("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/script_order_168_cor_filt.csv", sep=",")
 ID_order <- order_script$ID
@@ -80,7 +81,8 @@ lv_distance_order <- data.frame(ID_order,lv_dist)
 write.csv(lv_distance_order,file='/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/data/Main Analysis/levenstein_distance_order_steps.csv')
 
 # Plot a histogram
-tiff("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/Levenstein distance order of steps 2.png", units="in", width=4, height=3, res=300)
+svglite("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/Levenstein distance order of steps 2.svg",
+        width=4, height=3)
 
 lv_dist_plot <- as.data.frame(lv_dist)
 ggplot(lv_dist_plot, aes(x=lv_dist)) +

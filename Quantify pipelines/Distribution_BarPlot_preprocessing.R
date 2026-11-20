@@ -8,6 +8,7 @@ source('/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/git/EEGManyPipelines-
 #-----Loading the data and packages-----#
 library(dplyr)
 library(ggplot2)
+library(svglite)
 library(entropy)
 library(RColorBrewer)
 library(ggpubr)
@@ -52,8 +53,10 @@ p3 <- ggplot(AQ_cont, aes(x=`excl. participants`)) +
   labs(y = "% of teams")+
   theme(text = element_text(size = 20))
 
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_density.png", 
-     units="in", width=3.5, height=5.8, res=300)
+
+svglite("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_density.svg",
+        width=3.5, height=5.8)
+
 ggarrange(p1,p2,p3,nrow = 3,ncol = 1) #nrow & ncol depend on how you want to 
 #organize your plots
 dev.off()
@@ -63,6 +66,23 @@ log_output("Distribution_BarPlot_preproc_and_H1.R", "AQ_preprocess_density.png")
 
 # FOR CATEGORICAL VARIABLES #
 AQ_cat <- AQ_preproc[,-indx_contin]
+
+# correct entries for three most common options
+AQ_cat$software[AQ_cat$software == 'eeglab'] <- 'EEGLAB'
+AQ_cat$software[AQ_cat$software == 'fieldtrip'] <- 'Fieldtrip'
+AQ_cat$software[AQ_cat$software == 'mnepython'] <- 'MNE-Python'
+
+AQ_cat$`ICA algorithm`[AQ_cat$`ICA algorithm` == 'ex_infomax'] <- 'ext.infomax'
+
+AQ_cat$`segment. excl. crit.`[AQ_cat$`segment. excl. crit.` == 'mul_thresh'] <- 'mult.thresh.'
+AQ_cat$`segment. excl. crit.`[AQ_cat$`segment. excl. crit.` == 'thresh'] <- 'thresh.'
+
+AQ_cat$`high-pass direction`[AQ_cat$`high-pass direction` == 'fwd_bwd'] <- 'forw.backw.'
+AQ_cat$`high-pass direction`[AQ_cat$`high-pass direction` == 'fwd'] <- 'forw.'
+
+AQ_cat$`high-pass type`[AQ_cat$`high-pass type` == 'hf_fir'] <- 'FIR'
+AQ_cat$`high-pass type`[AQ_cat$`high-pass type` == 'hf_iir'] <- 'IIR'
+
 
 # Correct values: convert binary to yes - no
 for (i in 1:length(AQ_cat)){
@@ -131,8 +151,9 @@ extended_palette <- colorRampPalette(coul)(12)
 
 
 # Barplot the data
-png("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_barplots_v2.png", units="in", 
-     width=11, height=5.2, res=300)
+
+svglite("/Users/ecesnaite/Desktop/BuschLab/EEGManyPipelines/figures/AQ_preprocess_barplots_v2.svg",
+        width=11, height=5.2)
 par(mar=c(4,9,2,1), cex=2) #bottom, left, top, right
 #par(mar = c(2, 2, 2, 2))  # reduce margins
 
