@@ -164,15 +164,6 @@ for gg = 1:length(grps) %
         error_catch.errorMSG = 'All Subject Data Empty';
     end
 
-    % now check for unbalanced trial-count and make error if necessary. At
-    % the moment, it throws error if 5:1 trial-unbalance
-    if (abs((ntrials_hit_mis{'Total','Hit'} ...
-            -ntrials_hit_mis{'Total','Miss'}) ...
-            /(ntrials_hit_mis{'Total','Hit'} ...
-            +ntrials_hit_mis{'Total','Miss'} ...
-            +0.01)) > 0.66) && isempty(error_catch) 
-        error_catch.errorMSG = 'Uneven Hit vs Miss Trial Balance';
-    end
 
     % now we skip the team if an error has been found and include the team
     % in an exclusion list for further reference
